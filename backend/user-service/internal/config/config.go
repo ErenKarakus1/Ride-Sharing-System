@@ -3,12 +3,14 @@ package config
 import "os"
 
 type Config struct {
-	Port string
+	Port        string
+	DatabaseURL string
 }
 
 func Load() Config {
 	return Config{
-		Port: env("PORT", "8080"),
+		Port:        env("PORT", "8080"),
+		DatabaseURL: env("DATABASE_URL", "postgres://rideshare:rideshare@localhost:5432/rideshare?sslmode=disable"),
 	}
 }
 
