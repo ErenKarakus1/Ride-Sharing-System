@@ -59,5 +59,9 @@ jobs:
         working-directory: backend/payment-service
         run: go test ./...
 
+      - name: Run backend test tool
+        working-directory: tools/test-all
+        run: go run .
+
       - name: Validate Docker Compose
         run: docker compose config

@@ -35,8 +35,9 @@ Microservices-based ride sharing backend built with Go.
 
 Run all backend module tests:
 
-```powershell
-.\scripts\test-all.ps1
+```sh
+cd tools/test-all
+go run .
 ```
 
 Validate Docker Compose:
@@ -47,14 +48,15 @@ docker compose config
 
 Start the backend stack after Docker Desktop is running:
 
-```powershell
+```sh
 docker compose up --build
 ```
 
 Run health smoke checks:
 
-```powershell
-.\scripts\smoke.ps1
+```sh
+cd tools/smoke
+go run .
 ```
 
 ## Observability
