@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy, rideProxy *proxy.Proxy, locationProxy *proxy.Proxy, matchingProxy *proxy.Proxy, pricingProxy *proxy.Proxy) *gin.Engine {
+func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy, rideProxy *proxy.Proxy, locationProxy *proxy.Proxy, matchingProxy *proxy.Proxy, pricingProxy *proxy.Proxy, notificationProxy *proxy.Proxy) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(requestLogger())
@@ -39,6 +39,8 @@ func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userP
 			protected.Any("/fare-estimates", gin.WrapH(pricingProxy.Handler()))
 		}
 	}
+
+	router.GET("/ws/notifications", gin.WrapH(notificationProxy.Handler()))
 
 	return router
 }

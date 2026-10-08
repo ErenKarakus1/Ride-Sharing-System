@@ -33,7 +33,8 @@ func main() {
 	locationProxy := proxy.New(cfg.LocationServiceHTTPURL)
 	matchingProxy := proxy.New(cfg.MatchingServiceHTTPURL)
 	pricingProxy := proxy.New(cfg.PricingServiceHTTPURL)
-	router := httpapi.NewRouter(authValidator, authProxy, userProxy, rideProxy, locationProxy, matchingProxy, pricingProxy)
+	notificationProxy := proxy.New(cfg.NotificationServiceHTTPURL)
+	router := httpapi.NewRouter(authValidator, authProxy, userProxy, rideProxy, locationProxy, matchingProxy, pricingProxy, notificationProxy)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
