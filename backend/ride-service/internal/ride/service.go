@@ -7,6 +7,7 @@ import (
 )
 
 var ErrInvalidTransition = errors.New("invalid ride status transition")
+var ErrMissingRider = errors.New("missing rider")
 
 type Service struct {
 	repository Repository
@@ -17,8 +18,13 @@ func NewService(repository Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, error) {
+	riderID := strings.TrimSpace(request.RiderID)
+	if riderID == "" {
+		return Ride{}, ErrMissingRider
+	}
+
 	return s.repository.Create(ctx, Ride{
-		RiderID: strings.TrimSpace(request.RiderID),
+		RiderID: riderID,
 		Pickup: Location{
 			Latitude:  request.Pickup.Latitude,
 			Longitude: request.Pickup.Longitude,

@@ -21,8 +21,15 @@ func (h *Handler) Create(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if request.RiderID == "" {
+		request.RiderID = ctx.GetHeader("X-User-ID")
+	}
 
 	created, err := h.service.Create(ctx.Request.Context(), request)
+	if errors.Is(err, ErrMissingRider) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing rider"})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create ride"})
 		return
@@ -99,7 +106,7 @@ func (h *Handler) writeRideResult(ctx *gin.Context, ride Ride, err error) {
 }
 
 type CreateRideRequest struct {
-	RiderID string   `json:"rider_id" binding:"required"`
+	RiderID string   `json:"rider_id"`
 	Pickup  Location `json:"pickup" binding:"required"`
 	Dropoff Location `json:"dropoff" binding:"required"`
 }
