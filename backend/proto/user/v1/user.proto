@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/ErenKarakus1/Ride-Sharing-System/backend/proto/gen/go/user/v1;userv1";
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+message CreateUserRequest {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  string phone_number = 4;
+  Role role = 5;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  string phone_number = 4;
+  Role role = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_RIDER = 1;
+  ROLE_DRIVER = 2;
+}
