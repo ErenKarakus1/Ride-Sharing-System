@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/user-service/internal/user"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(userHandler *user.Handler) *gin.Engine {
@@ -21,6 +22,7 @@ func NewRouter(userHandler *user.Handler) *gin.Engine {
 			"status":  "ok",
 		})
 	})
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	v1 := router.Group("/api/v1")
 	{

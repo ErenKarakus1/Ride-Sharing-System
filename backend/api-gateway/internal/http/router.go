@@ -8,6 +8,7 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/api-gateway/internal/authclient"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/api-gateway/internal/proxy"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy, rideProxy *proxy.Proxy, locationProxy *proxy.Proxy, matchingProxy *proxy.Proxy, pricingProxy *proxy.Proxy, notificationProxy *proxy.Proxy, paymentProxy *proxy.Proxy) *gin.Engine {
@@ -21,6 +22,7 @@ func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userP
 			"status":  "ok",
 		})
 	})
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	v1 := router.Group("/api/v1")
 	{

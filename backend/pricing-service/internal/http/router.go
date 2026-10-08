@@ -7,6 +7,7 @@ import (
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/pricing-service/internal/pricing"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(pricingHandler *pricing.Handler) *gin.Engine {
@@ -20,6 +21,7 @@ func NewRouter(pricingHandler *pricing.Handler) *gin.Engine {
 			"status":  "ok",
 		})
 	})
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	v1 := router.Group("/api/v1")
 	{

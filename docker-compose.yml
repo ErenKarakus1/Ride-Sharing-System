@@ -163,5 +163,32 @@ services:
     ports:
       - "8088:8088"
 
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    volumes:
+      - ./deployments/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api-gateway
+      - auth-service
+      - user-service
+      - ride-service
+      - location-service
+      - matching-service
+      - notification-service
+      - pricing-service
+      - payment-service
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+
 volumes:
   postgres-data:
+  grafana-data:

@@ -7,6 +7,7 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/authclient"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/notification"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(hub *notification.Hub, validator authclient.Validator) *gin.Engine {
@@ -19,6 +20,7 @@ func NewRouter(hub *notification.Hub, validator authclient.Validator) *gin.Engin
 			"status":  "ok",
 		})
 	})
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	router.GET("/ws/notifications", func(ctx *gin.Context) {
 		accessToken := bearerToken(ctx.GetHeader("Authorization"))
