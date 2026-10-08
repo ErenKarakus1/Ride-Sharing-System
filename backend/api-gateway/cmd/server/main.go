@@ -31,7 +31,8 @@ func main() {
 	userProxy := proxy.New(cfg.UserServiceHTTPURL)
 	rideProxy := proxy.New(cfg.RideServiceHTTPURL)
 	locationProxy := proxy.New(cfg.LocationServiceHTTPURL)
-	router := httpapi.NewRouter(authValidator, authProxy, userProxy, rideProxy, locationProxy)
+	matchingProxy := proxy.New(cfg.MatchingServiceHTTPURL)
+	router := httpapi.NewRouter(authValidator, authProxy, userProxy, rideProxy, locationProxy, matchingProxy)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
