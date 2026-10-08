@@ -29,7 +29,8 @@ func main() {
 	authValidator := authclient.NewGRPCValidator(authConn)
 	authProxy := proxy.New(cfg.AuthServiceHTTPURL)
 	userProxy := proxy.New(cfg.UserServiceHTTPURL)
-	router := httpapi.NewRouter(authValidator, authProxy, userProxy)
+	rideProxy := proxy.New(cfg.RideServiceHTTPURL)
+	router := httpapi.NewRouter(authValidator, authProxy, userProxy, rideProxy)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

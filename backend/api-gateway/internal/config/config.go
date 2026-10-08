@@ -7,6 +7,7 @@ type Config struct {
 	AuthServiceGRPCAddr string
 	AuthServiceHTTPURL  string
 	UserServiceHTTPURL  string
+	RideServiceHTTPURL  string
 }
 
 func Load() Config {
@@ -15,6 +16,7 @@ func Load() Config {
 		AuthServiceGRPCAddr: env("AUTH_SERVICE_GRPC_ADDR", "localhost:9092"),
 		AuthServiceHTTPURL:  env("AUTH_SERVICE_HTTP_URL", "http://localhost:8081"),
 		UserServiceHTTPURL:  env("USER_SERVICE_HTTP_URL", "http://localhost:8080"),
+		RideServiceHTTPURL:  env("RIDE_SERVICE_HTTP_URL", "http://localhost:8082"),
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy) *gin.Engine {
+func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy, rideProxy *proxy.Proxy) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(requestLogger())
@@ -32,6 +32,8 @@ func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userP
 		{
 			protected.Any("/users", gin.WrapH(userProxy.Handler()))
 			protected.Any("/users/*path", gin.WrapH(userProxy.Handler()))
+			protected.Any("/rides", gin.WrapH(rideProxy.Handler()))
+			protected.Any("/rides/*path", gin.WrapH(rideProxy.Handler()))
 		}
 	}
 
