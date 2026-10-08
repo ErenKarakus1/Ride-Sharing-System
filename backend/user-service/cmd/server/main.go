@@ -21,7 +21,8 @@ func main() {
 	defer db.Close()
 
 	repository := user.NewPostgresRepository(db)
-	handler := user.NewHandler(repository)
+	service := user.NewService(repository)
+	handler := user.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
 	log.Printf("starting user-service on port %s", cfg.Port)

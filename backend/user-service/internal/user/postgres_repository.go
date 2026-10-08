@@ -2,10 +2,12 @@ package user
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,7 +40,15 @@ func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error
 		user.Role,
 	)
 
-	return scanUser(row)
+	created, err := scanUser(row)
+	if isUniqueViolation(err) {
+		return User{}, ErrEmailAlreadyExists
+	}
+	if err != nil {
+		return User{}, err
+	}
+
+	return created, nil
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]User, error) {
@@ -65,6 +75,16 @@ func (r *PostgresRepository) List(ctx context.Context) ([]User, error) {
 	}
 
 	return users, rows.Err()
+}
+
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" ||
+		strings.Contains(err.Error(), "SQLSTATE 23505")
 }
 
 func (r *PostgresRepository) Get(ctx context.Context, id string) (User, error) {

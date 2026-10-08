@@ -9,12 +9,12 @@ import (
 )
 
 type Handler struct {
-	repository Repository
+	service *Service
 }
 
-func NewHandler(repository Repository) *Handler {
+func NewHandler(service *Service) *Handler {
 	return &Handler{
-		repository: repository,
+		service: service,
 	}
 }
 
@@ -25,7 +25,15 @@ func (h *Handler) Create(ctx *gin.Context) {
 		return
 	}
 
-	created, err := h.repository.Create(ctx.Request.Context(), request.ToUser())
+	created, err := h.service.Create(ctx.Request.Context(), request)
+	if errors.Is(err, ErrInvalidRole) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user role"})
+		return
+	}
+	if errors.Is(err, ErrEmailAlreadyExists) {
+		ctx.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
@@ -35,7 +43,7 @@ func (h *Handler) Create(ctx *gin.Context) {
 }
 
 func (h *Handler) List(ctx *gin.Context) {
-	users, err := h.repository.List(ctx.Request.Context())
+	users, err := h.service.List(ctx.Request.Context())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list users"})
 		return
@@ -45,7 +53,7 @@ func (h *Handler) List(ctx *gin.Context) {
 }
 
 func (h *Handler) Get(ctx *gin.Context) {
-	found, err := h.repository.Get(ctx.Request.Context(), ctx.Param("id"))
+	found, err := h.service.Get(ctx.Request.Context(), ctx.Param("id"))
 	if errors.Is(err, ErrUserNotFound) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -65,7 +73,7 @@ func (h *Handler) Update(ctx *gin.Context) {
 		return
 	}
 
-	updated, err := h.repository.Update(ctx.Request.Context(), ctx.Param("id"), request)
+	updated, err := h.service.Update(ctx.Request.Context(), ctx.Param("id"), request)
 	if errors.Is(err, ErrUserNotFound) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -97,4 +105,17 @@ func (r CreateUserRequest) ToUser() User {
 type UpdateUserRequest struct {
 	DisplayName *string `json:"display_name"`
 	PhoneNumber *string `json:"phone_number"`
+}
+
+func (r UpdateUserRequest) Trimmed() UpdateUserRequest {
+	if r.DisplayName != nil {
+		trimmed := strings.TrimSpace(*r.DisplayName)
+		r.DisplayName = &trimmed
+	}
+	if r.PhoneNumber != nil {
+		trimmed := strings.TrimSpace(*r.PhoneNumber)
+		r.PhoneNumber = &trimmed
+	}
+
+	return r
 }

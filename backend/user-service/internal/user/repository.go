@@ -6,6 +6,7 @@ import (
 )
 
 var ErrUserNotFound = errors.New("user not found")
+var ErrEmailAlreadyExists = errors.New("email already exists")
 
 type Repository interface {
 	Create(ctx context.Context, user User) (User, error)
