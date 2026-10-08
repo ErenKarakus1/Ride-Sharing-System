@@ -1,35 +1,21 @@
 package main
 
 import (
-	"net/http"
-	"os"
+	"log"
 
-	"github.com/gin-gonic/gin"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/user-service/internal/config"
+	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/user-service/internal/http"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/user-service/internal/user"
 )
 
 func main() {
-	port := env("PORT", "8080")
+	cfg := config.Load()
+	repository := user.NewMemoryRepository()
+	handler := user.NewHandler(repository)
+	router := httpapi.NewRouter(handler)
 
-	router := gin.New()
-	router.Use(gin.Recovery())
-
-	router.GET("/health", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"service": "user-service",
-			"status":  "ok",
-		})
-	})
-
-	if err := router.Run(":" + port); err != nil {
-		panic(err)
+	log.Printf("starting user-service on port %s", cfg.Port)
+	if err := router.Run(":" + cfg.Port); err != nil {
+		log.Fatalf("user-service stopped: %v", err)
 	}
-}
-
-func env(key string, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-
-	return value
 }
