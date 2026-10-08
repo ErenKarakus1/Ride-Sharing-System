@@ -28,7 +28,9 @@ func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error
 		RETURNING id, email, display_name, phone_number, role, created_at, updated_at
 	`
 
-	user.ID = uuid.NewString()
+	if user.ID == "" {
+		user.ID = uuid.NewString()
+	}
 
 	row := r.db.QueryRow(
 		ctx,

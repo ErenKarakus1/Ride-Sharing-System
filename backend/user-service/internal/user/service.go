@@ -19,12 +19,21 @@ func NewService(repository Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, request CreateUserRequest) (User, error) {
-	user := request.ToUser()
-	if !user.Role.Valid() {
+	return s.CreateWithID(ctx, request.ToInput())
+}
+
+func (s *Service) CreateWithID(ctx context.Context, input CreateUserInput) (User, error) {
+	if !input.Role.Valid() {
 		return User{}, ErrInvalidRole
 	}
 
-	return s.repository.Create(ctx, user)
+	return s.repository.Create(ctx, User{
+		ID:          strings.TrimSpace(input.ID),
+		Email:       strings.TrimSpace(input.Email),
+		DisplayName: strings.TrimSpace(input.DisplayName),
+		PhoneNumber: strings.TrimSpace(input.PhoneNumber),
+		Role:        input.Role,
+	})
 }
 
 func (s *Service) List(ctx context.Context) ([]User, error) {

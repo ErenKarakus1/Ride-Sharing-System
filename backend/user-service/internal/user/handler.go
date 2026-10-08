@@ -93,13 +93,21 @@ type CreateUserRequest struct {
 	Role        Role   `json:"role" binding:"required"`
 }
 
-func (r CreateUserRequest) ToUser() User {
-	return User{
+func (r CreateUserRequest) ToInput() CreateUserInput {
+	return CreateUserInput{
 		Email:       strings.TrimSpace(r.Email),
 		DisplayName: strings.TrimSpace(r.DisplayName),
 		PhoneNumber: strings.TrimSpace(r.PhoneNumber),
 		Role:        r.Role,
 	}
+}
+
+type CreateUserInput struct {
+	ID          string
+	Email       string
+	DisplayName string
+	PhoneNumber string
+	Role        Role
 }
 
 type UpdateUserRequest struct {
