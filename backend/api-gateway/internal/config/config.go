@@ -10,6 +10,7 @@ type Config struct {
 	RideServiceHTTPURL     string
 	LocationServiceHTTPURL string
 	MatchingServiceHTTPURL string
+	PricingServiceHTTPURL  string
 }
 
 func Load() Config {
@@ -21,6 +22,7 @@ func Load() Config {
 		RideServiceHTTPURL:     env("RIDE_SERVICE_HTTP_URL", "http://localhost:8082"),
 		LocationServiceHTTPURL: env("LOCATION_SERVICE_HTTP_URL", "http://localhost:8083"),
 		MatchingServiceHTTPURL: env("MATCHING_SERVICE_HTTP_URL", "http://localhost:8084"),
+		PricingServiceHTTPURL:  env("PRICING_SERVICE_HTTP_URL", "http://localhost:8086"),
 	}
 }
 
