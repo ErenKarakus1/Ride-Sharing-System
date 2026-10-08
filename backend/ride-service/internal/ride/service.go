@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
 )
 
 var ErrInvalidTransition = errors.New("invalid ride status transition")
@@ -11,10 +13,14 @@ var ErrMissingRider = errors.New("missing rider")
 
 type Service struct {
 	repository Repository
+	publisher  events.Publisher
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{repository: repository}
+func NewService(repository Repository, publisher events.Publisher) *Service {
+	return &Service{
+		repository: repository,
+		publisher:  publisher,
+	}
 }
 
 func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, error) {
@@ -23,7 +29,7 @@ func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, 
 		return Ride{}, ErrMissingRider
 	}
 
-	return s.repository.Create(ctx, Ride{
+	created, err := s.repository.Create(ctx, Ride{
 		RiderID: riderID,
 		Pickup: Location{
 			Latitude:  request.Pickup.Latitude,
@@ -36,6 +42,15 @@ func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, 
 			Address:   strings.TrimSpace(request.Dropoff.Address),
 		},
 	})
+	if err != nil {
+		return Ride{}, err
+	}
+
+	if err := s.publishRideEvent(ctx, "ride.requested", created); err != nil {
+		return Ride{}, err
+	}
+
+	return created, nil
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Ride, error) {
@@ -56,7 +71,12 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 	}
 
 	trimmedDriverID := strings.TrimSpace(driverID)
-	return s.repository.UpdateStatus(ctx, id, StatusAccepted, &trimmedDriverID)
+	updated, err := s.repository.UpdateStatus(ctx, id, StatusAccepted, &trimmedDriverID)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return updated, s.publishRideEvent(ctx, "ride.accepted", updated)
 }
 
 func (s *Service) Start(ctx context.Context, id string) (Ride, error) {
@@ -68,7 +88,12 @@ func (s *Service) Start(ctx context.Context, id string) (Ride, error) {
 		return Ride{}, ErrInvalidTransition
 	}
 
-	return s.repository.UpdateStatus(ctx, id, StatusStarted, nil)
+	updated, err := s.repository.UpdateStatus(ctx, id, StatusStarted, nil)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return updated, s.publishRideEvent(ctx, "ride.started", updated)
 }
 
 func (s *Service) Complete(ctx context.Context, id string) (Ride, error) {
@@ -80,7 +105,12 @@ func (s *Service) Complete(ctx context.Context, id string) (Ride, error) {
 		return Ride{}, ErrInvalidTransition
 	}
 
-	return s.repository.UpdateStatus(ctx, id, StatusCompleted, nil)
+	updated, err := s.repository.UpdateStatus(ctx, id, StatusCompleted, nil)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return updated, s.publishRideEvent(ctx, "ride.completed", updated)
 }
 
 func (s *Service) Cancel(ctx context.Context, id string) (Ride, error) {
@@ -92,5 +122,18 @@ func (s *Service) Cancel(ctx context.Context, id string) (Ride, error) {
 		return Ride{}, ErrInvalidTransition
 	}
 
-	return s.repository.UpdateStatus(ctx, id, StatusCancelled, nil)
+	updated, err := s.repository.UpdateStatus(ctx, id, StatusCancelled, nil)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return updated, s.publishRideEvent(ctx, "ride.cancelled", updated)
+}
+
+func (s *Service) publishRideEvent(ctx context.Context, eventType string, ride Ride) error {
+	return s.publisher.Publish(ctx, events.Event{
+		Type: eventType,
+		Key:  ride.ID,
+		Data: ride,
+	})
 }

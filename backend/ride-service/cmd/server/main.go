@@ -10,6 +10,7 @@ import (
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/config"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/database"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/ride"
 )
@@ -28,8 +29,11 @@ func main() {
 		log.Fatalf("failed to run database migrations: %v", err)
 	}
 
+	publisher := events.NewKafkaPublisher(cfg.KafkaBrokers)
+	defer publisher.Close()
+
 	repository := ride.NewPostgresRepository(db)
-	service := ride.NewService(repository)
+	service := ride.NewService(repository, publisher)
 	handler := ride.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
