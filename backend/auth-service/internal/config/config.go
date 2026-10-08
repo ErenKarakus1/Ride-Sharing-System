@@ -6,7 +6,8 @@ import (
 )
 
 type Config struct {
-	Port            string
+	HTTPPort        string
+	GRPCPort        string
 	DatabaseURL     string
 	JWTSecret       string
 	TokenTTL        time.Duration
@@ -15,7 +16,8 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		Port:            env("PORT", "8081"),
+		HTTPPort:        env("HTTP_PORT", env("PORT", "8081")),
+		GRPCPort:        env("GRPC_PORT", "9092"),
 		DatabaseURL:     env("DATABASE_URL", "postgres://rideshare:rideshare@localhost:5432/rideshare?sslmode=disable"),
 		JWTSecret:       env("JWT_SECRET", "change-me"),
 		TokenTTL:        24 * time.Hour,

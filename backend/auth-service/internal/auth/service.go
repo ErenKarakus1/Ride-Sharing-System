@@ -68,6 +68,10 @@ func (s *Service) Login(ctx context.Context, request LoginRequest) (AuthResponse
 	return s.authResponse(account)
 }
 
+func (s *Service) ValidateToken(accessToken string) (TokenClaims, error) {
+	return s.tokenIssuer.Validate(accessToken)
+}
+
 func (s *Service) authResponse(account Account) (AuthResponse, error) {
 	accessToken, expiresAt, err := s.tokenIssuer.Issue(account)
 	if err != nil {
