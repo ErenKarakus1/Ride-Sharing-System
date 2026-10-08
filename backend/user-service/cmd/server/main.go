@@ -20,6 +20,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := database.Migrate(ctx, db); err != nil {
+		log.Fatalf("failed to run database migrations: %v", err)
+	}
+
 	repository := user.NewPostgresRepository(db)
 	service := user.NewService(repository)
 	handler := user.NewHandler(service)
