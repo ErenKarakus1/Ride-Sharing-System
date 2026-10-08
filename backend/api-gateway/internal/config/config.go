@@ -12,6 +12,7 @@ type Config struct {
 	MatchingServiceHTTPURL     string
 	PricingServiceHTTPURL      string
 	NotificationServiceHTTPURL string
+	PaymentServiceHTTPURL      string
 }
 
 func Load() Config {
@@ -25,6 +26,7 @@ func Load() Config {
 		MatchingServiceHTTPURL:     env("MATCHING_SERVICE_HTTP_URL", "http://localhost:8084"),
 		PricingServiceHTTPURL:      env("PRICING_SERVICE_HTTP_URL", "http://localhost:8086"),
 		NotificationServiceHTTPURL: env("NOTIFICATION_SERVICE_HTTP_URL", "http://localhost:8085"),
+		PaymentServiceHTTPURL:      env("PAYMENT_SERVICE_HTTP_URL", "http://localhost:8087"),
 	}
 }
 
