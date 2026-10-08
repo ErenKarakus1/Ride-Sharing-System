@@ -58,8 +58,11 @@ func (h *Handler) Login(ctx *gin.Context) {
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+	DisplayName string `json:"display_name" binding:"required"`
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	Role        string `json:"role" binding:"required"`
 }
 
 type LoginRequest struct {

@@ -13,12 +13,14 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 type Service struct {
 	repository  Repository
 	tokenIssuer *TokenIssuer
+	profiles    ProfileClient
 }
 
-func NewService(repository Repository, tokenIssuer *TokenIssuer) *Service {
+func NewService(repository Repository, tokenIssuer *TokenIssuer, profiles ProfileClient) *Service {
 	return &Service{
 		repository:  repository,
 		tokenIssuer: tokenIssuer,
+		profiles:    profiles,
 	}
 }
 
@@ -33,6 +35,17 @@ func (s *Service) Register(ctx context.Context, request RegisterRequest) (AuthRe
 		PasswordHash: string(passwordHash),
 	})
 	if err != nil {
+		return AuthResponse{}, err
+	}
+
+	if err := s.profiles.Create(ctx, CreateProfileInput{
+		ID:          account.ID,
+		Email:       account.Email,
+		DisplayName: request.DisplayName,
+		PhoneNumber: request.PhoneNumber,
+		Role:        request.Role,
+	}); err != nil {
+		_ = s.repository.Delete(ctx, account.ID)
 		return AuthResponse{}, err
 	}
 

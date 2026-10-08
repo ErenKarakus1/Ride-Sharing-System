@@ -60,6 +60,11 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (Acco
 	return account, nil
 }
 
+func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx, "DELETE FROM auth_accounts WHERE id = $1", id)
+	return err
+}
+
 type accountRow interface {
 	Scan(dest ...any) error
 }

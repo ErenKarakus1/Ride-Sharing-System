@@ -12,6 +12,9 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/auth-service/internal/config"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/auth-service/internal/database"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/auth-service/internal/http"
+	userclient "github.com/ErenKarakus1/Ride-Sharing-System/backend/auth-service/internal/userclient"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -28,9 +31,16 @@ func main() {
 		log.Fatalf("failed to run database migrations: %v", err)
 	}
 
+	userConn, err := grpc.NewClient(cfg.UserServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create user-service client: %v", err)
+	}
+	defer userConn.Close()
+
 	repository := auth.NewPostgresRepository(db)
 	tokenIssuer := auth.NewTokenIssuer(cfg.JWTSecret, cfg.TokenTTL)
-	service := auth.NewService(repository, tokenIssuer)
+	profiles := userclient.NewGRPCProfileClient(userConn)
+	service := auth.NewService(repository, tokenIssuer, profiles)
 	handler := auth.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
