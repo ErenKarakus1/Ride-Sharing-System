@@ -8,10 +8,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/authclient"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/config"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/events"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/notification"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -19,11 +22,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	service := notification.NewService()
+	authConn, err := grpc.NewClient(cfg.AuthServiceGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create auth-service client: %v", err)
+	}
+	defer authConn.Close()
+
+	validator := authclient.NewGRPCValidator(authConn)
+	hub := notification.NewHub(cfg.AllowedOrigins)
+	go hub.Run(ctx)
+
+	service := notification.NewService(hub)
 	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
 	defer consumer.Close()
 
-	router := httpapi.NewRouter()
+	router := httpapi.NewRouter(hub, validator)
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           router,

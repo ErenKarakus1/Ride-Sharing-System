@@ -7,10 +7,14 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/events"
 )
 
-type Service struct{}
+type Service struct {
+	hub *Hub
+}
 
-func NewService() *Service {
-	return &Service{}
+func NewService(hub *Hub) *Service {
+	return &Service{
+		hub: hub,
+	}
 }
 
 func (s *Service) HandleRideEvent(ctx context.Context, event events.RideEvent) error {
@@ -21,6 +25,26 @@ func (s *Service) HandleRideEvent(ctx context.Context, event events.RideEvent) e
 		event.Data.RiderID,
 		event.Data.Status,
 	)
+
+	if err := s.hub.Send(event.Data.RiderID, Notification{
+		Type: event.Type,
+		Payload: map[string]any{
+			"ride_id": event.Data.ID,
+			"status":  event.Data.Status,
+		},
+	}); err != nil {
+		return err
+	}
+
+	if event.Data.DriverID != nil {
+		return s.hub.Send(*event.Data.DriverID, Notification{
+			Type: event.Type,
+			Payload: map[string]any{
+				"ride_id": event.Data.ID,
+				"status":  event.Data.Status,
+			},
+		})
+	}
 
 	return nil
 }

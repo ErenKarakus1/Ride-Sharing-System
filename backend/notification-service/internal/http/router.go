@@ -2,11 +2,14 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/authclient"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/notification-service/internal/notification"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter() *gin.Engine {
+func NewRouter(hub *notification.Hub, validator authclient.Validator) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
@@ -17,5 +20,30 @@ func NewRouter() *gin.Engine {
 		})
 	})
 
+	router.GET("/ws/notifications", func(ctx *gin.Context) {
+		accessToken := bearerToken(ctx.GetHeader("Authorization"))
+		if accessToken == "" {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
+			return
+		}
+
+		claims, err := validator.Validate(ctx.Request.Context(), accessToken)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid bearer token"})
+			return
+		}
+
+		hub.HandleWebSocket(ctx, claims.UserID)
+	})
+
 	return router
+}
+
+func bearerToken(header string) string {
+	scheme, token, ok := strings.Cut(header, " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
+		return ""
+	}
+
+	return strings.TrimSpace(token)
 }
