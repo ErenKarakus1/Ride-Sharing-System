@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useNotifications } from "./hooks/useNotifications";
-import { createApi, request } from "./lib/api";
+import { ApiError, createApi, request } from "./lib/api";
 import { initialActionStates } from "./lib/actionState";
 import { capitalize } from "./lib/format";
 import { pageFromPath, pathForPage } from "./lib/routes";
@@ -54,7 +54,7 @@ export function App() {
     window.history.pushState({}, "", pathForPage(nextPage));
   }
 
-  async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string) {
+  async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string, sessionRole?: Role) {
     setActions((current) => ({
       ...current,
       [key]: { loading: true, message: "", error: "" },
@@ -68,12 +68,17 @@ export function App() {
       }));
       return result;
     } catch (err) {
+      const message = errorMessage(err);
+      if (sessionRole && err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        setSessions((current) => ({ ...current, [sessionRole]: null }));
+      }
+
       setActions((current) => ({
         ...current,
         [key]: {
           loading: false,
           message: "",
-          error: err instanceof Error ? err.message : "Unexpected error",
+          error: message,
         },
       }));
       return null;
@@ -109,6 +114,7 @@ export function App() {
       "fare",
       () => riderApi.post<FareEstimate>("/api/v1/fare-estimates", { pickup, dropoff }),
       "Fare estimated",
+      "rider",
     );
     if (response) setFare(response);
   }
@@ -118,6 +124,7 @@ export function App() {
       "ride",
       () => riderApi.post<Ride>("/api/v1/rides", { pickup, dropoff }),
       "Ride requested",
+      "rider",
     );
     if (response) {
       setRide(response);
@@ -144,13 +151,14 @@ export function App() {
           currency: fare.currency,
         }),
       "Payment authorized",
+      "rider",
     );
     if (response) setPayment(response);
   }
 
   async function refreshRide() {
     if (!ride) return;
-    const response = await run("ride", () => riderApi.get<Ride>(`/api/v1/rides/${ride.id}`), "Ride refreshed");
+    const response = await run("ride", () => riderApi.get<Ride>(`/api/v1/rides/${ride.id}`), "Ride refreshed", "rider");
     if (response) setRide(response);
   }
 
@@ -160,6 +168,7 @@ export function App() {
       "payment",
       () => riderApi.get<Payment>(`/api/v1/payments/${payment.id}`),
       "Payment refreshed",
+      "rider",
     );
     if (response) setPayment(response);
   }
@@ -169,6 +178,7 @@ export function App() {
       "driver-location",
       () => driverApi.put<void>(`/api/v1/drivers/${sessions.driver?.user_id}/location`, driverLocation),
       "Driver location updated",
+      "driver",
     );
   }
 
@@ -177,6 +187,7 @@ export function App() {
       "driver-location",
       () => driverApi.post<void>(`/api/v1/drivers/${sessions.driver?.user_id}/available`, {}),
       "Driver is available",
+      "driver",
     );
   }
 
@@ -199,6 +210,7 @@ export function App() {
           limit: 5,
         }),
       "Driver matched",
+      "rider",
     );
     if (response) setMatch(response);
   }
@@ -209,6 +221,7 @@ export function App() {
       "lifecycle",
       () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/accept`, {}),
       "Ride accepted",
+      "driver",
     );
     if (response) setRide(response);
   }
@@ -219,6 +232,7 @@ export function App() {
       "lifecycle",
       () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/start`, {}),
       "Ride started",
+      "driver",
     );
     if (response) setRide(response);
   }
@@ -229,6 +243,7 @@ export function App() {
       "lifecycle",
       () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/complete`, {}),
       "Ride completed",
+      "driver",
     );
     if (response) setRide(response);
   }
@@ -248,6 +263,7 @@ export function App() {
         page={page}
         activeForm={activeForm}
         sessions={sessions}
+        authLoading={actions.auth.loading}
         onRoleChange={setRole}
         onPageChange={navigate}
         onFormChange={setActiveForm}
@@ -327,4 +343,12 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function errorMessage(err: unknown) {
+  if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+    return "Session expired. Sign in again.";
+  }
+  if (err instanceof Error) return err.message;
+  return "Unexpected error";
 }

@@ -6,6 +6,16 @@ type RequestOptions = {
   body?: unknown;
 };
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 export function createApi(token?: string) {
   return {
     get: <T>(path: string) => request<T>(path, { token }),
@@ -25,11 +35,31 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  const payload = parsePayload(text);
 
   if (!response.ok) {
-    throw new Error(payload?.error ?? `Request failed with ${response.status}`);
+    throw new ApiError(errorMessage(payload, text, response.status), response.status);
   }
 
   return payload as T;
+}
+
+function parsePayload(text: string) {
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function errorMessage(payload: unknown, text: string, status: number) {
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const error = (payload as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+
+  if (text.trim()) return text;
+  return `Request failed with ${status}`;
 }

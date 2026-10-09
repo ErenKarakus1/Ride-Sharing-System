@@ -55,6 +55,21 @@ describe("api client", () => {
       "ride is already completed",
     );
   });
+
+  it("throws plain text errors when a backend returns non-json", async () => {
+    fetchMock.mockResolvedValueOnce(response(null, { ok: false, status: 502, text: "bad gateway" }));
+
+    await expect(createApi("token-123").get("/api/v1/rides/ride-1")).rejects.toThrow("bad gateway");
+  });
+
+  it("keeps response status on api errors", async () => {
+    fetchMock.mockResolvedValueOnce(response({ error: "invalid token" }, { ok: false, status: 401 }));
+
+    await expect(createApi("token-123").get("/api/v1/rides/ride-1")).rejects.toMatchObject({
+      status: 401,
+      message: "invalid token",
+    });
+  });
 });
 
 function response(payload: unknown, options: { ok?: boolean; status?: number; text?: string } = {}) {

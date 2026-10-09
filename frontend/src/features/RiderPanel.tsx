@@ -1,6 +1,7 @@
 import { Car, CheckCircle2, CircleDollarSign, RefreshCcw } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
+import { EmptyState } from "../components/EmptyState";
 import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
 import { locationPresets } from "../config";
@@ -62,10 +63,10 @@ export function RiderPanel({
       />
 
       <div className="button-row">
-        <IconButton icon={CircleDollarSign} label="Estimate" onClick={onEstimateFare} disabled={!isRider || action.loading} />
-        <IconButton icon={Car} label="Request ride" onClick={onCreateRide} disabled={!isRider || action.loading} />
-        <IconButton icon={CheckCircle2} label="Authorize" onClick={onAuthorizePayment} disabled={!isRider || action.loading} />
-        <IconButton icon={RefreshCcw} label="Refresh" onClick={onRefreshRide} disabled={!ride || action.loading} />
+        <IconButton icon={CircleDollarSign} label="Estimate" loading={action.loading} loadingLabel="Estimating..." onClick={onEstimateFare} disabled={!isRider} />
+        <IconButton icon={Car} label="Request ride" loading={action.loading} loadingLabel="Requesting..." onClick={onCreateRide} disabled={!isRider} />
+        <IconButton icon={CheckCircle2} label="Authorize" loading={action.loading} loadingLabel="Authorizing..." onClick={onAuthorizePayment} disabled={!isRider} />
+        <IconButton icon={RefreshCcw} label="Refresh" loading={action.loading} loadingLabel="Refreshing..." onClick={onRefreshRide} disabled={!ride} />
       </div>
 
       <DataStrip
@@ -76,6 +77,13 @@ export function RiderPanel({
           ["Driver", ride?.driver_id || match?.driver_id || "-"],
         ]}
       />
+
+      {!isRider && (
+        <EmptyState icon={Car} title="Rider session required" detail="Register or sign in as a rider before running this flow." />
+      )}
+      {isRider && !ride && (
+        <EmptyState icon={CircleDollarSign} title="Ready to plan" detail="Estimate a fare, then request a ride from the selected pickup and dropoff." />
+      )}
     </section>
   );
 }

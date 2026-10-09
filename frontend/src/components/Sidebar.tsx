@@ -11,6 +11,7 @@ type SidebarProps = {
   page: Page;
   activeForm: AccountForm;
   sessions: Sessions;
+  authLoading: boolean;
   onRoleChange: (role: Role) => void;
   onPageChange: (page: Page) => void;
   onFormChange: (form: AccountForm) => void;
@@ -25,6 +26,7 @@ export function Sidebar({
   page,
   activeForm,
   sessions,
+  authLoading,
   onRoleChange,
   onPageChange,
   onFormChange,
@@ -99,8 +101,8 @@ export function Sidebar({
             />
           </Field>
           <div className="button-row">
-            <IconButton icon={UserPlus} label="Register" onClick={onRegister} />
-            <IconButton icon={LogIn} label="Login" onClick={onLogin} variant="secondary" />
+            <IconButton icon={UserPlus} label="Register" loading={authLoading} loadingLabel="Registering..." onClick={onRegister} />
+            <IconButton icon={LogIn} label="Login" loading={authLoading} loadingLabel="Signing in..." onClick={onLogin} variant="secondary" />
           </div>
         </section>
       )}

@@ -526,6 +526,45 @@ button:disabled {
   grid-column: 2;
 }
 
+.route-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.route-summary .status-line {
+  border: 1px solid #e0e6e1;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfb;
+}
+
+.empty-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 9px;
+  margin-top: 14px;
+  border: 1px dashed #cdd7cf;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfb;
+}
+
+.empty-state svg {
+  color: #186c8f;
+}
+
+.empty-state strong {
+  font-size: 14px;
+}
+
+.empty-state span {
+  grid-column: 2;
+  color: #77807a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .json-block {
   min-width: 0;
 }
@@ -620,6 +659,7 @@ button:disabled {
   .state-grid,
   .summary-grid,
   .data-strip,
+  .route-summary-grid,
   .timeline {
     grid-template-columns: 1fr;
   }

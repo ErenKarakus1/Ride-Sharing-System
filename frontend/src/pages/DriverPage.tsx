@@ -1,5 +1,6 @@
 import { Car, Clock3, MapPin, Navigation } from "lucide-react";
 import { Metric } from "../components/Metric";
+import { RouteSummary } from "../components/RouteSummary";
 import { DriverPanel } from "../features/DriverPanel";
 import { formatCoord } from "../lib/format";
 import type { ActionState, Location, Match, Payment, Ride } from "../types";
@@ -31,6 +32,13 @@ export function DriverPage(props: DriverPageProps) {
         <Metric icon={Clock3} label="Ride status" value={props.ride?.status ?? "No ride"} />
         <Metric icon={Car} label="Assigned driver" value={props.ride?.driver_id ?? "-"} />
       </section>
+      <RouteSummary
+        pickup={props.ride?.pickup ?? props.driverLocation}
+        dropoff={props.ride?.dropoff ?? props.driverLocation}
+        fare={null}
+        ride={props.ride}
+        match={props.match}
+      />
       <DriverPanel {...props} />
     </section>
   );

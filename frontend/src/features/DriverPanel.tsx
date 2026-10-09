@@ -1,6 +1,7 @@
 import { Car, CheckCircle2, Crosshair, Navigation, Radio } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
+import { EmptyState } from "../components/EmptyState";
 import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
 import { locationPresets } from "../config";
@@ -67,12 +68,12 @@ export function DriverPanel({
       />
 
       <div className="button-row">
-        <IconButton icon={Crosshair} label="Update" onClick={onUpdateDriverLocation} disabled={!isDriver || locationAction.loading} />
-        <IconButton icon={Radio} label="Available" onClick={onSetDriverAvailable} disabled={!isDriver || locationAction.loading} />
-        <IconButton icon={Navigation} label="Match" onClick={onFindDriver} disabled={!ride || matchingAction.loading} />
-        <IconButton icon={CheckCircle2} label="Accept" onClick={onAcceptRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
-        <IconButton icon={Car} label="Start" onClick={onStartRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
-        <IconButton icon={CheckCircle2} label="Complete" onClick={onCompleteRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
+        <IconButton icon={Crosshair} label="Update" loading={locationAction.loading} loadingLabel="Updating..." onClick={onUpdateDriverLocation} disabled={!isDriver} />
+        <IconButton icon={Radio} label="Available" loading={locationAction.loading} loadingLabel="Saving..." onClick={onSetDriverAvailable} disabled={!isDriver} />
+        <IconButton icon={Navigation} label="Match" loading={matchingAction.loading} loadingLabel="Matching..." onClick={onFindDriver} disabled={!ride} />
+        <IconButton icon={CheckCircle2} label="Accept" loading={lifecycleAction.loading} loadingLabel="Accepting..." onClick={onAcceptRide} disabled={!isDriver || !ride} />
+        <IconButton icon={Car} label="Start" loading={lifecycleAction.loading} loadingLabel="Starting..." onClick={onStartRide} disabled={!isDriver || !ride} />
+        <IconButton icon={CheckCircle2} label="Complete" loading={lifecycleAction.loading} loadingLabel="Completing..." onClick={onCompleteRide} disabled={!isDriver || !ride} />
       </div>
 
       <DataStrip
@@ -83,6 +84,13 @@ export function DriverPanel({
           ["Payment ID", payment?.id ?? "-"],
         ]}
       />
+
+      {!isDriver && (
+        <EmptyState icon={Car} title="Driver session required" detail="Register or sign in as a driver before accepting trips." />
+      )}
+      {isDriver && !ride && (
+        <EmptyState icon={Navigation} title="Waiting for a ride" detail="Update driver location, mark the driver available, then match an active ride." />
+      )}
     </section>
   );
 }
