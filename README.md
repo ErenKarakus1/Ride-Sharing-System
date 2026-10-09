@@ -33,6 +33,8 @@ Microservices-based ride sharing backend built with Go.
 
 ## Local Checks
 
+This repository uses `go.work` to group the backend service modules and tools.
+
 Run all backend module tests:
 
 ```sh

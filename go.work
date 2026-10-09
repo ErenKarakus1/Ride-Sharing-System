@@ -1,0 +1,16 @@
+go 1.26.5
+
+use (
+	./backend/api-gateway
+	./backend/auth-service
+	./backend/location-service
+	./backend/matching-service
+	./backend/notification-service
+	./backend/payment-service
+	./backend/pricing-service
+	./backend/proto/gen/go
+	./backend/ride-service
+	./backend/user-service
+	./tools/smoke
+	./tools/test-all
+)
