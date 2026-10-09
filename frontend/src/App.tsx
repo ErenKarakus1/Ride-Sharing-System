@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useNotifications } from "./hooks/useNotifications";
 import { createApi, request } from "./lib/api";
 import { initialActionStates } from "./lib/actionState";
 import { capitalize } from "./lib/format";
+import { pageFromPath, pathForPage } from "./lib/routes";
 import { AuthPage } from "./pages/AuthPage";
 import { DriverPage } from "./pages/DriverPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -12,12 +13,11 @@ import { RideDetailsPage } from "./pages/RideDetailsPage";
 import { RiderPage } from "./pages/RiderPage";
 import { API_BASE, driverStart, initialDropoff, initialPickup, sampleAccount } from "./config";
 import type { AccountForm, ActionKey, FareEstimate, Location, Match, Payment, Ride, Role, Session, Sessions } from "./types";
-
-type Page = "auth" | "rider" | "driver" | "ride" | "notifications";
+import type { Page } from "./lib/routes";
 
 export function App() {
   const [role, setRole] = useState<Role>("rider");
-  const [page, setPage] = useState<Page>("auth");
+  const [page, setPage] = useState<Page>(() => pageFromPath(window.location.pathname));
   const [sessions, setSessions] = useLocalStorage<Sessions>("ride-sharing-sessions", {
     rider: null,
     driver: null,
@@ -42,6 +42,17 @@ export function App() {
 
   const isRider = Boolean(sessions.rider);
   const isDriver = Boolean(sessions.driver);
+
+  useEffect(() => {
+    const onPopState = () => setPage(pageFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function navigate(nextPage: Page) {
+    setPage(nextPage);
+    window.history.pushState({}, "", pathForPage(nextPage));
+  }
 
   async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string) {
     setActions((current) => ({
@@ -76,6 +87,7 @@ export function App() {
         body: activeForm,
       });
       setSessions((current) => ({ ...current, [response.role]: response }));
+      navigate(response.role);
       return response;
     }, `${capitalize(role)} registered`);
   }
@@ -87,6 +99,7 @@ export function App() {
         body: { email: activeForm.email, password: activeForm.password },
       });
       setSessions((current) => ({ ...current, [response.role]: response }));
+      navigate(response.role);
       return response;
     }, `${capitalize(role)} signed in`);
   }
@@ -228,7 +241,7 @@ export function App() {
         activeForm={activeForm}
         sessions={sessions}
         onRoleChange={setRole}
-        onPageChange={(nextPage) => setPage(nextPage as Page)}
+        onPageChange={navigate}
         onFormChange={setActiveForm}
         onRegister={register}
         onLogin={login}

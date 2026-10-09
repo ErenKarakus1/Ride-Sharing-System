@@ -1,17 +1,18 @@
 import { Activity, LogIn, LogOut, Route, ShieldCheck, UserPlus } from "lucide-react";
 import type { AccountForm, Role, Sessions } from "../types";
 import { capitalize } from "../lib/format";
+import type { Page } from "../lib/routes";
 import { Field } from "./Field";
 import { IconButton } from "./IconButton";
 import { StatusLine } from "./StatusLine";
 
 type SidebarProps = {
   role: Role;
-  page: string;
+  page: Page;
   activeForm: AccountForm;
   sessions: Sessions;
   onRoleChange: (role: Role) => void;
-  onPageChange: (page: string) => void;
+  onPageChange: (page: Page) => void;
   onFormChange: (form: AccountForm) => void;
   onRegister: () => void;
   onLogin: () => void;
@@ -54,13 +55,13 @@ export function Sidebar({
       </div>
 
       <nav className="app-nav" aria-label="Primary navigation">
-        {[
+        {([
           ["auth", "Auth"],
           ["rider", "Rider"],
           ["driver", "Driver"],
           ["ride", "Ride"],
           ["notifications", "Notifications"],
-        ].map(([id, label]) => (
+        ] as Array<[Page, string]>).map(([id, label]) => (
           <button key={id} className={page === id ? "active" : ""} onClick={() => onPageChange(id)}>
             {label}
           </button>
@@ -68,35 +69,38 @@ export function Sidebar({
       </nav>
 
       {page === "auth" && (
-      <section className="panel compact">
-        <h2>{capitalize(role)} access</h2>
-        <Field label="Email">
-          <input value={activeForm.email} onChange={(event) => onFormChange({ ...activeForm, email: event.target.value })} />
-        </Field>
-        <Field label="Display name">
-          <input
-            value={activeForm.display_name}
-            onChange={(event) => onFormChange({ ...activeForm, display_name: event.target.value })}
-          />
-        </Field>
-        <Field label="Phone">
-          <input
-            value={activeForm.phone_number}
-            onChange={(event) => onFormChange({ ...activeForm, phone_number: event.target.value })}
-          />
-        </Field>
-        <Field label="Password">
-          <input
-            type="password"
-            value={activeForm.password}
-            onChange={(event) => onFormChange({ ...activeForm, password: event.target.value })}
-          />
-        </Field>
-        <div className="button-row">
-          <IconButton icon={UserPlus} label="Register" onClick={onRegister} />
-          <IconButton icon={LogIn} label="Login" onClick={onLogin} variant="secondary" />
-        </div>
-      </section>
+        <section className="panel compact">
+          <h2>{capitalize(role)} access</h2>
+          <Field label="Email">
+            <input
+              value={activeForm.email}
+              onChange={(event) => onFormChange({ ...activeForm, email: event.target.value })}
+            />
+          </Field>
+          <Field label="Display name">
+            <input
+              value={activeForm.display_name}
+              onChange={(event) => onFormChange({ ...activeForm, display_name: event.target.value })}
+            />
+          </Field>
+          <Field label="Phone">
+            <input
+              value={activeForm.phone_number}
+              onChange={(event) => onFormChange({ ...activeForm, phone_number: event.target.value })}
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              type="password"
+              value={activeForm.password}
+              onChange={(event) => onFormChange({ ...activeForm, password: event.target.value })}
+            />
+          </Field>
+          <div className="button-row">
+            <IconButton icon={UserPlus} label="Register" onClick={onRegister} />
+            <IconButton icon={LogIn} label="Login" onClick={onLogin} variant="secondary" />
+          </div>
+        </section>
       )}
 
       <section className="panel compact session-panel">
