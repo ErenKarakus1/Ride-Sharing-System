@@ -28,3 +28,22 @@ jobs:
 
       - name: Validate Docker Compose
         run: docker compose config
+
+      - name: Start backend stack
+        run: docker compose up --build -d
+
+      - name: Smoke check backend stack
+        working-directory: tools/smoke
+        run: go run .
+
+      - name: Run gateway e2e flow
+        working-directory: tools/e2e
+        run: go run .
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Stop backend stack
+        if: always()
+        run: docker compose down -v

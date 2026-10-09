@@ -38,13 +38,29 @@ func main() {
 	client := &http.Client{Timeout: 10 * time.Second}
 	for _, service := range services {
 		fmt.Printf("Checking %s at %s\n", service.name, service.url)
-		if err := checkHealth(client, service.url); err != nil {
+		if err := waitForHealth(client, service.url, 90*time.Second); err != nil {
 			fmt.Fprintf(os.Stderr, "%s health check failed: %v\n", service.name, err)
 			os.Exit(1)
 		}
 	}
 
 	fmt.Println("Smoke checks passed.")
+}
+
+func waitForHealth(client *http.Client, url string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if err := checkHealth(client, url); err != nil {
+			lastErr = err
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		return nil
+	}
+
+	return lastErr
 }
 
 func checkHealth(client *http.Client, url string) error {
