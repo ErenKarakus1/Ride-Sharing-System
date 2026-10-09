@@ -1,21 +1,23 @@
 import { useMemo, useState } from "react";
-import { CircleDollarSign, Clock3, MapPin, Navigation } from "lucide-react";
-import { Metric } from "./components/Metric";
 import { Sidebar } from "./components/Sidebar";
-import { DriverPanel } from "./features/DriverPanel";
-import { LiveStatePanel } from "./features/LiveStatePanel";
-import { NotificationsPanel } from "./features/NotificationsPanel";
-import { RiderPanel } from "./features/RiderPanel";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useNotifications } from "./hooks/useNotifications";
 import { createApi, request } from "./lib/api";
 import { initialActionStates } from "./lib/actionState";
-import { capitalize, formatCoord } from "./lib/format";
+import { capitalize } from "./lib/format";
+import { AuthPage } from "./pages/AuthPage";
+import { DriverPage } from "./pages/DriverPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { RideDetailsPage } from "./pages/RideDetailsPage";
+import { RiderPage } from "./pages/RiderPage";
 import { API_BASE, driverStart, initialDropoff, initialPickup, sampleAccount } from "./config";
 import type { AccountForm, ActionKey, FareEstimate, Location, Match, Payment, Ride, Role, Session, Sessions } from "./types";
 
+type Page = "auth" | "rider" | "driver" | "ride" | "notifications";
+
 export function App() {
   const [role, setRole] = useState<Role>("rider");
+  const [page, setPage] = useState<Page>("auth");
   const [sessions, setSessions] = useLocalStorage<Sessions>("ride-sharing-sessions", {
     rider: null,
     driver: null,
@@ -222,9 +224,11 @@ export function App() {
     <main className="app-shell">
       <Sidebar
         role={role}
+        page={page}
         activeForm={activeForm}
         sessions={sessions}
         onRoleChange={setRole}
+        onPageChange={(nextPage) => setPage(nextPage as Page)}
         onFormChange={setActiveForm}
         onRegister={register}
         onLogin={login}
@@ -242,15 +246,9 @@ export function App() {
           </div>
         </header>
 
-        <section className="metrics">
-          <Metric icon={MapPin} label="Pickup" value={formatCoord(pickup)} />
-          <Metric icon={Navigation} label="Dropoff" value={formatCoord(dropoff)} />
-          <Metric icon={Clock3} label="Ride status" value={ride?.status ?? "No ride"} />
-          <Metric icon={CircleDollarSign} label="Payment" value={payment?.status ?? "No payment"} />
-        </section>
-
-        <section className="flow-grid">
-          <RiderPanel
+        {page === "auth" && <AuthPage sessions={sessions} action={actions.auth} />}
+        {page === "rider" && (
+          <RiderPage
             isRider={isRider}
             action={actions.ride.error || actions.ride.message || actions.ride.loading ? actions.ride : actions.fare}
             pickup={pickup}
@@ -265,7 +263,9 @@ export function App() {
             onAuthorizePayment={authorizePayment}
             onRefreshRide={refreshRide}
           />
-          <DriverPanel
+        )}
+        {page === "driver" && (
+          <DriverPage
             isDriver={isDriver}
             locationAction={actions["driver-location"]}
             matchingAction={actions.matching}
@@ -282,9 +282,16 @@ export function App() {
             onStartRide={startRide}
             onCompleteRide={completeRide}
           />
-          <LiveStatePanel ride={ride} payment={payment} paymentAction={actions.payment} onRefreshPayment={refreshPayment} />
-          <NotificationsPanel notifications={notifications} />
-        </section>
+        )}
+        {page === "ride" && (
+          <RideDetailsPage
+            ride={ride}
+            payment={payment}
+            paymentAction={actions.payment}
+            onRefreshPayment={refreshPayment}
+          />
+        )}
+        {page === "notifications" && <NotificationsPage notifications={notifications} />}
       </section>
     </main>
   );

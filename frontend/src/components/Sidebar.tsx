@@ -7,9 +7,11 @@ import { StatusLine } from "./StatusLine";
 
 type SidebarProps = {
   role: Role;
+  page: string;
   activeForm: AccountForm;
   sessions: Sessions;
   onRoleChange: (role: Role) => void;
+  onPageChange: (page: string) => void;
   onFormChange: (form: AccountForm) => void;
   onRegister: () => void;
   onLogin: () => void;
@@ -18,9 +20,11 @@ type SidebarProps = {
 
 export function Sidebar({
   role,
+  page,
   activeForm,
   sessions,
   onRoleChange,
+  onPageChange,
   onFormChange,
   onRegister,
   onLogin,
@@ -49,6 +53,21 @@ export function Sidebar({
         </button>
       </div>
 
+      <nav className="app-nav" aria-label="Primary navigation">
+        {[
+          ["auth", "Auth"],
+          ["rider", "Rider"],
+          ["driver", "Driver"],
+          ["ride", "Ride"],
+          ["notifications", "Notifications"],
+        ].map(([id, label]) => (
+          <button key={id} className={page === id ? "active" : ""} onClick={() => onPageChange(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {page === "auth" && (
       <section className="panel compact">
         <h2>{capitalize(role)} access</h2>
         <Field label="Email">
@@ -78,6 +97,7 @@ export function Sidebar({
           <IconButton icon={LogIn} label="Login" onClick={onLogin} variant="secondary" />
         </div>
       </section>
+      )}
 
       <section className="panel compact session-panel">
         <h2>Session</h2>

@@ -104,6 +104,28 @@ button:disabled {
   color: #17211f;
 }
 
+.app-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.app-nav button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  border-radius: 7px;
+  padding: 0 12px;
+  background: transparent;
+  color: #c9d3ce;
+  font-weight: 800;
+  text-align: left;
+}
+
+.app-nav button.active {
+  background: #e9b44c;
+  color: #17211f;
+}
+
 .workspace {
   display: flex;
   min-width: 0;
@@ -313,6 +335,15 @@ button:disabled {
   gap: 18px;
 }
 
+.page-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.page-grid.single {
+  max-width: 1080px;
+}
+
 .wide-panel,
 .notifications {
   grid-column: span 2;
@@ -415,6 +446,7 @@ button:disabled {
 
   .metrics,
   .flow-grid,
+  .page-grid,
   .coordinate-grid,
   .state-grid,
   .data-strip {
