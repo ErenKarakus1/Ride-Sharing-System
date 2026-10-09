@@ -3,18 +3,20 @@ package config
 import "os"
 
 type Config struct {
-	HTTPPort     string
-	GRPCPort     string
-	DatabaseURL  string
-	KafkaBrokers string
+	HTTPPort      string
+	GRPCPort      string
+	DatabaseURL   string
+	KafkaBrokers  string
+	InternalToken string
 }
 
 func Load() Config {
 	return Config{
-		HTTPPort:     env("HTTP_PORT", env("PORT", "8082")),
-		GRPCPort:     env("GRPC_PORT", "9093"),
-		DatabaseURL:  env("DATABASE_URL", "postgres://rideshare:rideshare@localhost:5432/rideshare?sslmode=disable"),
-		KafkaBrokers: env("KAFKA_BROKERS", "localhost:9092"),
+		HTTPPort:      env("HTTP_PORT", env("PORT", "8082")),
+		GRPCPort:      env("GRPC_PORT", "9093"),
+		DatabaseURL:   env("DATABASE_URL", "postgres://rideshare:rideshare@localhost:5432/rideshare?sslmode=disable"),
+		KafkaBrokers:  env("KAFKA_BROKERS", "localhost:9092"),
+		InternalToken: env("INTERNAL_SERVICE_TOKEN", ""),
 	}
 }
 

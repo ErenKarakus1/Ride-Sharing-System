@@ -24,6 +24,14 @@ func NewService(repository Repository, publisher events.Publisher) *Service {
 }
 
 func (s *Service) Authorize(ctx context.Context, request AuthorizeRequest) (Payment, error) {
+	existing, err := s.repository.GetByRide(ctx, request.RideID)
+	if err == nil {
+		return existing, nil
+	}
+	if !errors.Is(err, ErrPaymentNotFound) {
+		return Payment{}, err
+	}
+
 	currency := strings.TrimSpace(request.Currency)
 	if currency == "" {
 		currency = "TRY"

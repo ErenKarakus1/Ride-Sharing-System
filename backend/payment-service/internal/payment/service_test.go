@@ -113,6 +113,16 @@ func (r *fakeRepository) Get(ctx context.Context, id string) (Payment, error) {
 	return payment, nil
 }
 
+func (r *fakeRepository) GetByRide(ctx context.Context, rideID string) (Payment, error) {
+	for _, payment := range r.payments {
+		if payment.RideID == rideID {
+			return payment, nil
+		}
+	}
+
+	return Payment{}, ErrPaymentNotFound
+}
+
 func (r *fakeRepository) GetAuthorizedByRide(ctx context.Context, rideID string) (Payment, error) {
 	for _, payment := range r.payments {
 		if payment.RideID == rideID && payment.Status == StatusAuthorized {

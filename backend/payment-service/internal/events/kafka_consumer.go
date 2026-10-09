@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -49,14 +50,36 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := c.handler.HandleRideEvent(ctx, event); err != nil {
-			return err
+		if err := c.handleWithRetry(ctx, event); err != nil {
+			log.Printf("failed to handle ride event after retries type=%s: %v", event.Type, err)
+			_ = c.reader.CommitMessages(ctx, message)
+			continue
 		}
 
 		if err := c.reader.CommitMessages(ctx, message); err != nil {
 			return err
 		}
 	}
+}
+
+func (c *KafkaConsumer) handleWithRetry(ctx context.Context, event RideEvent) error {
+	var err error
+	for attempt := 1; attempt <= 3; attempt++ {
+		err = c.handler.HandleRideEvent(ctx, event)
+		if err == nil {
+			return nil
+		}
+
+		timer := time.NewTimer(time.Duration(attempt) * 250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+	}
+
+	return err
 }
 
 func (c *KafkaConsumer) Close() error {

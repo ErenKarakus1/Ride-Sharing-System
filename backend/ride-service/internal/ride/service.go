@@ -68,6 +68,9 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 		return Ride{}, err
 	}
 	if current.Status != StatusRequested {
+		if current.Status == StatusAccepted && driverOwnsRide(current, driverID) {
+			return current, nil
+		}
 		return Ride{}, ErrInvalidTransition
 	}
 
@@ -90,6 +93,9 @@ func (s *Service) Start(ctx context.Context, id string, driverID string) (Ride, 
 		return Ride{}, err
 	}
 	if current.Status != StatusAccepted {
+		if current.Status == StatusStarted && driverOwnsRide(current, driverID) {
+			return current, nil
+		}
 		return Ride{}, ErrInvalidTransition
 	}
 	if !driverOwnsRide(current, driverID) {
@@ -110,6 +116,9 @@ func (s *Service) Complete(ctx context.Context, id string, driverID string) (Rid
 		return Ride{}, err
 	}
 	if current.Status != StatusStarted {
+		if current.Status == StatusCompleted && driverOwnsRide(current, driverID) {
+			return current, nil
+		}
 		return Ride{}, ErrInvalidTransition
 	}
 	if !driverOwnsRide(current, driverID) {
@@ -129,7 +138,10 @@ func (s *Service) Cancel(ctx context.Context, id string, actorID string) (Ride, 
 	if err != nil {
 		return Ride{}, err
 	}
-	if current.Status == StatusCompleted || current.Status == StatusCancelled {
+	if current.Status == StatusCancelled && riderOrAssignedDriver(current, actorID) {
+		return current, nil
+	}
+	if current.Status == StatusCompleted {
 		return Ride{}, ErrInvalidTransition
 	}
 	if !riderOrAssignedDriver(current, actorID) {

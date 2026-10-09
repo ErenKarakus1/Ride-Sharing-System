@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("failed to listen for grpc: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ridegrpc.InternalAuthInterceptor(cfg.InternalToken)))
 	ridev1.RegisterRideServiceServer(grpcServer, ridegrpc.NewRideServer(service))
 
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)

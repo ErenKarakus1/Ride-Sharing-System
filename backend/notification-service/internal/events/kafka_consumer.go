@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -57,20 +58,42 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 			return err
 		}
 
-		if err := c.handler.HandleMessage(ctx, message.Value); err != nil {
+		if err := c.handleWithRetry(ctx, message.Value); err != nil {
 			if errors.Is(err, errInvalidMessage) {
 				log.Printf("failed to decode event: %v", err)
 				_ = c.reader.CommitMessages(ctx, message)
 				continue
 			}
 
-			return err
+			log.Printf("failed to handle event after retries: %v", err)
+			_ = c.reader.CommitMessages(ctx, message)
+			continue
 		}
 
 		if err := c.reader.CommitMessages(ctx, message); err != nil {
 			return err
 		}
 	}
+}
+
+func (c *KafkaConsumer) handleWithRetry(ctx context.Context, value []byte) error {
+	var err error
+	for attempt := 1; attempt <= 3; attempt++ {
+		err = c.handler.HandleMessage(ctx, value)
+		if err == nil || errors.Is(err, errInvalidMessage) {
+			return err
+		}
+
+		timer := time.NewTimer(time.Duration(attempt) * 250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+	}
+
+	return err
 }
 
 type rideMessageHandler struct {
