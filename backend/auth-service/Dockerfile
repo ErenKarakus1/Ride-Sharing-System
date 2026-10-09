@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS build
+FROM public.ecr.aws/docker/library/golang:1.26-alpine AS build
 
 WORKDIR /app
 COPY backend/proto/gen/go /proto/gen/go
@@ -7,7 +7,7 @@ RUN go mod download
 COPY backend/auth-service ./
 RUN go build -o /bin/auth-service ./cmd/server
 
-FROM alpine:3.21
+FROM public.ecr.aws/docker/library/alpine:3.21
 
 COPY --from=build /bin/auth-service /bin/auth-service
 EXPOSE 8081 9092

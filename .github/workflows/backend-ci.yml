@@ -52,8 +52,8 @@ jobs:
       - name: Validate Docker Compose
         run: docker compose config
 
-      - name: Start backend stack
-        run: docker compose up --build -d
+      - name: Start app stack
+        run: docker compose up --build -d frontend
 
       - name: Smoke check backend stack
         working-directory: tools/smoke
