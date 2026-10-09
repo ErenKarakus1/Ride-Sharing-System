@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 var ErrInvalidRole = errors.New("invalid role")
+var ErrWeakPassword = errors.New("weak password")
 
 type Service struct {
 	repository  Repository
@@ -26,6 +28,10 @@ func NewService(repository Repository, tokenIssuer *TokenIssuer, profiles Profil
 }
 
 func (s *Service) Register(ctx context.Context, request RegisterRequest) (AuthResponse, error) {
+	if !strongPassword(request.Password) {
+		return AuthResponse{}, ErrWeakPassword
+	}
+
 	role := strings.TrimSpace(request.Role)
 	if role != "rider" && role != "driver" {
 		return AuthResponse{}, ErrInvalidRole
@@ -57,6 +63,23 @@ func (s *Service) Register(ctx context.Context, request RegisterRequest) (AuthRe
 	}
 
 	return s.authResponse(account)
+}
+
+func strongPassword(password string) bool {
+	if len(password) < 12 {
+		return false
+	}
+
+	var hasLower bool
+	var hasUpper bool
+	var hasDigit bool
+	for _, value := range password {
+		hasLower = hasLower || unicode.IsLower(value)
+		hasUpper = hasUpper || unicode.IsUpper(value)
+		hasDigit = hasDigit || unicode.IsDigit(value)
+	}
+
+	return hasLower && hasUpper && hasDigit
 }
 
 func (s *Service) Login(ctx context.Context, request LoginRequest) (AuthResponse, error) {

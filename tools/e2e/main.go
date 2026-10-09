@@ -46,7 +46,7 @@ func main() {
 
 	register, err := post[authResponse](client, baseURL+"/api/v1/auth/register", "", map[string]any{
 		"email":        email,
-		"password":     "password123",
+		"password":     "Password12345",
 		"display_name": "E2E Rider",
 		"phone_number": "+905551112233",
 		"role":         "rider",
@@ -55,14 +55,14 @@ func main() {
 
 	login, err := post[authResponse](client, baseURL+"/api/v1/auth/login", "", map[string]any{
 		"email":    email,
-		"password": "password123",
+		"password": "Password12345",
 	})
 	must("login", err)
 
 	driverEmail := fmt.Sprintf("driver%d@example.com", time.Now().UnixNano())
 	driverRegister, err := post[authResponse](client, baseURL+"/api/v1/auth/register", "", map[string]any{
 		"email":        driverEmail,
-		"password":     "password123",
+		"password":     "Password12345",
 		"display_name": "E2E Driver",
 		"phone_number": "+905559998877",
 		"role":         "driver",
@@ -71,7 +71,7 @@ func main() {
 
 	driverLogin, err := post[authResponse](client, baseURL+"/api/v1/auth/login", "", map[string]any{
 		"email":    driverEmail,
-		"password": "password123",
+		"password": "Password12345",
 	})
 	must("login driver", err)
 

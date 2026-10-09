@@ -29,6 +29,10 @@ func (h *Handler) Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 		return
 	}
+	if errors.Is(err, ErrWeakPassword) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "weak password"})
+		return
+	}
 	if errors.Is(err, ErrEmailAlreadyExists) {
 		ctx.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
 		return
