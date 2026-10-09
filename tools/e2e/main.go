@@ -277,7 +277,11 @@ func get[T any](client *http.Client, url string, accessToken string) (T, error) 
 func waitForPaymentStatus(client *http.Client, url string, accessToken string, status string) (paymentResponse, error) {
 	var payment paymentResponse
 	var err error
-	for range 20 {
+	deadline := time.After(60 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
 		payment, err = get[paymentResponse](client, url, accessToken)
 		if err != nil {
 			return paymentResponse{}, err
@@ -286,10 +290,12 @@ func waitForPaymentStatus(client *http.Client, url string, accessToken string, s
 			return payment, nil
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-deadline:
+			return payment, fmt.Errorf("payment status remained %q, expected %q after 60s", payment.Status, status)
+		case <-ticker.C:
+		}
 	}
-
-	return payment, fmt.Errorf("payment status remained %q, expected %q", payment.Status, status)
 }
 
 func postNoContent(client *http.Client, url string, accessToken string, body any) error {
