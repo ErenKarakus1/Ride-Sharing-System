@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type authResponse struct {
@@ -33,6 +36,11 @@ type rideResponse struct {
 type paymentResponse struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
+}
+
+type notificationMessage struct {
+	Type    string         `json:"type"`
+	Payload map[string]any `json:"payload"`
 }
 
 func main() {
@@ -97,6 +105,10 @@ func main() {
 	})
 	must("authorize payment", err)
 
+	notifications, closeNotifications, err := watchNotifications(baseURL, login.AccessToken)
+	must("connect rider notifications websocket", err)
+	defer closeNotifications()
+
 	must("update driver location", putNoContent(client, fmt.Sprintf("%s/api/v1/drivers/%s/location", baseURL, driverRegister.UserID), driverLogin.AccessToken, map[string]any{
 		"latitude":  pickup.Latitude,
 		"longitude": pickup.Longitude,
@@ -118,6 +130,8 @@ func main() {
 	completed, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/complete", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
 	must("complete ride", err)
 
+	must("wait for ride completed notification", waitForNotification(notifications, "ride.completed", ride.ID))
+
 	captured, err := waitForPaymentStatus(client, fmt.Sprintf("%s/api/v1/payments/%s", baseURL, payment.ID), login.AccessToken, "captured")
 	must("wait for captured payment", err)
 
@@ -136,6 +150,66 @@ func main() {
 		payment.Status,
 		captured.Status,
 	)
+}
+
+func watchNotifications(baseURL string, accessToken string) (<-chan notificationMessage, func(), error) {
+	wsURL := strings.Replace(baseURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
+	wsURL += "/ws/notifications"
+
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer "+accessToken)
+	headers.Set("Origin", "http://localhost:3000")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, headers)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	notifications := make(chan notificationMessage, 8)
+	done := make(chan struct{})
+	go func() {
+		defer close(notifications)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+
+			var message notificationMessage
+			if err := conn.ReadJSON(&message); err != nil {
+				return
+			}
+			notifications <- message
+		}
+	}()
+
+	closeFn := func() {
+		close(done)
+		_ = conn.Close()
+	}
+
+	return notifications, closeFn, nil
+}
+
+func waitForNotification(notifications <-chan notificationMessage, eventType string, rideID string) error {
+	timeout := time.After(10 * time.Second)
+	for {
+		select {
+		case message, ok := <-notifications:
+			if !ok {
+				return fmt.Errorf("notifications websocket closed before %s", eventType)
+			}
+			if message.Type != eventType {
+				continue
+			}
+			if fmt.Sprint(message.Payload["ride_id"]) == rideID {
+				return nil
+			}
+		case <-timeout:
+			return fmt.Errorf("timed out waiting for %s notification", eventType)
+		}
+	}
 }
 
 func post[T any](client *http.Client, url string, accessToken string, body any) (T, error) {
