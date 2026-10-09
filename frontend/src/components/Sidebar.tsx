@@ -1,4 +1,4 @@
-import { Activity, LogIn, LogOut, Route, ShieldCheck, UserPlus } from "lucide-react";
+import { Activity, LogIn, LogOut, RotateCcw, Route, ShieldCheck, UserPlus } from "lucide-react";
 import type { AccountForm, Role, Sessions } from "../types";
 import { capitalize } from "../lib/format";
 import type { Page } from "../lib/routes";
@@ -17,6 +17,7 @@ type SidebarProps = {
   onRegister: () => void;
   onLogin: () => void;
   onSignOut: () => void;
+  onResetTrip: () => void;
 };
 
 export function Sidebar({
@@ -30,6 +31,7 @@ export function Sidebar({
   onRegister,
   onLogin,
   onSignOut,
+  onResetTrip,
 }: SidebarProps) {
   const session = sessions[role];
 
@@ -107,9 +109,14 @@ export function Sidebar({
         <h2>Session</h2>
         <StatusLine icon={ShieldCheck} label="Role" value={session?.role ?? "Signed out"} />
         <StatusLine icon={Activity} label="User" value={session?.user_id ?? "-"} />
-        <button className="wide ghost" onClick={onSignOut}>
-          <LogOut size={16} /> Sign out
-        </button>
+        <div className="button-row stacked">
+          <button className="wide ghost" onClick={onResetTrip}>
+            <RotateCcw size={16} /> Reset trip
+          </button>
+          <button className="wide ghost" onClick={onSignOut} disabled={!session}>
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
       </section>
     </aside>
   );

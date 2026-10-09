@@ -255,6 +255,11 @@ button:disabled {
   margin-top: 16px;
 }
 
+.button-row.stacked {
+  display: grid;
+  gap: 8px;
+}
+
 .action,
 .wide,
 .icon-only {
@@ -287,7 +292,6 @@ button:disabled {
 
 .wide {
   width: 100%;
-  margin-top: 14px;
 }
 
 .icon-only {
@@ -435,6 +439,36 @@ button:disabled {
   background: #f1f4f1;
 }
 
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.step {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dbe2dc;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfcfb;
+  color: #77807a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.step svg {
+  flex: 0 0 auto;
+}
+
+.step.done {
+  border-color: #b7dbc7;
+  background: #dff3e8;
+  color: #16603f;
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -449,7 +483,8 @@ button:disabled {
   .page-grid,
   .coordinate-grid,
   .state-grid,
-  .data-strip {
+  .data-strip,
+  .timeline {
     grid-template-columns: 1fr;
   }
 

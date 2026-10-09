@@ -233,6 +233,14 @@ export function App() {
     if (response) setRide(response);
   }
 
+  function resetTrip() {
+    setFare(null);
+    setRide(null);
+    setMatch(null);
+    setPayment(null);
+    setActions(initialActionStates);
+  }
+
   return (
     <main className="app-shell">
       <Sidebar
@@ -246,6 +254,7 @@ export function App() {
         onRegister={register}
         onLogin={login}
         onSignOut={() => setSessions((current) => ({ ...current, [role]: null }))}
+        onResetTrip={resetTrip}
       />
 
       <section className="workspace">
@@ -259,7 +268,16 @@ export function App() {
           </div>
         </header>
 
-        {page === "auth" && <AuthPage sessions={sessions} action={actions.auth} />}
+        {page === "auth" && (
+          <AuthPage
+            sessions={sessions}
+            action={actions.auth}
+            fare={fare}
+            ride={ride}
+            match={match}
+            payment={payment}
+          />
+        )}
         {page === "rider" && (
           <RiderPage
             isRider={isRider}
