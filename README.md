@@ -61,6 +61,13 @@ cd tools/smoke
 go run .
 ```
 
+Run a gateway end-to-end flow:
+
+```sh
+cd tools/e2e
+go run .
+```
+
 ## Observability
 
 Every HTTP service exposes:

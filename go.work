@@ -11,6 +11,7 @@ use (
 	./backend/proto/gen/go
 	./backend/ride-service
 	./backend/user-service
+	./tools/e2e
 	./tools/smoke
 	./tools/test-all
 )

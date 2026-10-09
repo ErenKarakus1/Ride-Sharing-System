@@ -18,6 +18,9 @@ var modules = []string{
 	"backend/notification-service",
 	"backend/pricing-service",
 	"backend/payment-service",
+	"tools/e2e",
+	"tools/smoke",
+	"tools/test-all",
 }
 
 func main() {
