@@ -59,6 +59,22 @@ func main() {
 	})
 	must("login", err)
 
+	driverEmail := fmt.Sprintf("driver%d@example.com", time.Now().UnixNano())
+	driverRegister, err := post[authResponse](client, baseURL+"/api/v1/auth/register", "", map[string]any{
+		"email":        driverEmail,
+		"password":     "password123",
+		"display_name": "E2E Driver",
+		"phone_number": "+905559998877",
+		"role":         "driver",
+	})
+	must("register driver", err)
+
+	driverLogin, err := post[authResponse](client, baseURL+"/api/v1/auth/login", "", map[string]any{
+		"email":    driverEmail,
+		"password": "password123",
+	})
+	must("login driver", err)
+
 	pickup := location{Latitude: 41.0082, Longitude: 28.9784, Address: "Sultanahmet"}
 	dropoff := location{Latitude: 41.0369, Longitude: 28.9850, Address: "Taksim"}
 
@@ -76,20 +92,49 @@ func main() {
 
 	payment, err := post[paymentResponse](client, baseURL+"/api/v1/payments/authorize", login.AccessToken, map[string]any{
 		"ride_id":  ride.ID,
-		"rider_id": register.UserID,
 		"amount":   fare.Amount,
 		"currency": fare.Currency,
 	})
 	must("authorize payment", err)
 
-	fmt.Printf("E2E passed: user=%s ride=%s ride_status=%s fare=%.2f %s payment=%s payment_status=%s\n",
+	must("update driver location", putNoContent(client, fmt.Sprintf("%s/api/v1/drivers/%s/location", baseURL, driverRegister.UserID), driverLogin.AccessToken, map[string]any{
+		"latitude":  pickup.Latitude,
+		"longitude": pickup.Longitude,
+	}))
+	must("set driver available", postNoContent(client, fmt.Sprintf("%s/api/v1/drivers/%s/available", baseURL, driverRegister.UserID), driverLogin.AccessToken, nil))
+
+	match, err := post[map[string]any](client, baseURL+"/api/v1/matches", login.AccessToken, map[string]any{
+		"ride_id": ride.ID,
+		"pickup":  pickup,
+	})
+	must("match ride", err)
+
+	accepted, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/accept", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
+	must("accept ride", err)
+
+	started, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/start", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
+	must("start ride", err)
+
+	completed, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/complete", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
+	must("complete ride", err)
+
+	captured, err := post[paymentResponse](client, fmt.Sprintf("%s/api/v1/payments/%s/capture", baseURL, payment.ID), login.AccessToken, map[string]any{})
+	must("capture payment", err)
+
+	fmt.Printf("E2E passed: rider=%s driver=%s matched_driver=%v ride=%s statuses=%s/%s/%s/%s fare=%.2f %s payment=%s payment_status=%s/%s\n",
 		register.UserID,
+		driverRegister.UserID,
+		match["driver_id"],
 		ride.ID,
 		ride.Status,
+		accepted.Status,
+		started.Status,
+		completed.Status,
 		fare.Amount,
 		fare.Currency,
 		payment.ID,
 		payment.Status,
+		captured.Status,
 	)
 }
 
@@ -125,6 +170,40 @@ func post[T any](client *http.Client, url string, accessToken string, body any) 
 	}
 
 	return result, nil
+}
+
+func postNoContent(client *http.Client, url string, accessToken string, body any) error {
+	return requestNoContent(client, http.MethodPost, url, accessToken, body)
+}
+
+func putNoContent(client *http.Client, url string, accessToken string, body any) error {
+	return requestNoContent(client, http.MethodPut, url, accessToken, body)
+}
+
+func requestNoContent(client *http.Client, method string, url string, accessToken string, body any) error {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest(method, url, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		return fmt.Errorf("%s returned status %d", url, response.StatusCode)
+	}
+
+	return nil
 }
 
 func must(step string, err error) {

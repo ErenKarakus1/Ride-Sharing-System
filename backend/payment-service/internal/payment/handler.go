@@ -16,11 +16,17 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) Authorize(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "rider" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "rider role required"})
+		return
+	}
+
 	var request AuthorizeRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	request.RiderID = ctx.GetHeader("X-User-ID")
 
 	payment, err := h.service.Authorize(ctx.Request.Context(), request)
 	if err != nil {
@@ -65,7 +71,7 @@ func (h *Handler) writePaymentResult(ctx *gin.Context, payment Payment, err erro
 
 type AuthorizeRequest struct {
 	RideID   string  `json:"ride_id" binding:"required"`
-	RiderID  string  `json:"rider_id" binding:"required"`
+	RiderID  string  `json:"rider_id"`
 	DriverID *string `json:"driver_id"`
 	Amount   float64 `json:"amount" binding:"required"`
 	Currency string  `json:"currency"`

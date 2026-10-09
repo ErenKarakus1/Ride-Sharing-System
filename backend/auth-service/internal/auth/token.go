@@ -25,6 +25,7 @@ func (i *TokenIssuer) Issue(account Account) (string, time.Time, error) {
 	claims := jwt.MapClaims{
 		"sub":   account.ID,
 		"email": account.Email,
+		"role":  account.Role,
 		"exp":   expiresAt.Unix(),
 		"iat":   time.Now().UTC().Unix(),
 	}
@@ -57,17 +58,20 @@ func (i *TokenIssuer) Validate(accessToken string) (TokenClaims, error) {
 
 	userID, _ := claims["sub"].(string)
 	email, _ := claims["email"].(string)
-	if userID == "" || email == "" {
+	role, _ := claims["role"].(string)
+	if userID == "" || email == "" || role == "" {
 		return TokenClaims{}, errors.New("missing token claims")
 	}
 
 	return TokenClaims{
 		UserID: userID,
 		Email:  email,
+		Role:   role,
 	}, nil
 }
 
 type TokenClaims struct {
 	UserID string
 	Email  string
+	Role   string
 }

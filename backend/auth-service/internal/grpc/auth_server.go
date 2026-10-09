@@ -30,5 +30,6 @@ func (s *AuthServer) ValidateToken(ctx context.Context, request *authv1.Validate
 		Valid:  true,
 		UserId: claims.UserID,
 		Email:  claims.Email,
+		Role:   claims.Role,
 	}, nil
 }

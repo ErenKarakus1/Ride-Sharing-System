@@ -6,6 +6,7 @@ type Account struct {
 	ID           string
 	Email        string
 	PasswordHash string
+	Role         string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -16,4 +17,5 @@ type AuthResponse struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 	UserID      string    `json:"user_id"`
 	Email       string    `json:"email"`
+	Role        string    `json:"role"`
 }

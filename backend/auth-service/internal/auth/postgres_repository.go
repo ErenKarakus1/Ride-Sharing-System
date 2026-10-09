@@ -23,15 +23,15 @@ func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
 
 func (r *PostgresRepository) Create(ctx context.Context, account Account) (Account, error) {
 	const query = `
-		INSERT INTO auth_accounts (id, email, password_hash)
-		VALUES ($1, $2, $3)
-		RETURNING id, email, password_hash, created_at, updated_at
+		INSERT INTO auth_accounts (id, email, password_hash, role)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, email, password_hash, role, created_at, updated_at
 	`
 
 	account.ID = uuid.NewString()
 	account.Email = strings.ToLower(strings.TrimSpace(account.Email))
 
-	created, err := scanAccount(r.db.QueryRow(ctx, query, account.ID, account.Email, account.PasswordHash))
+	created, err := scanAccount(r.db.QueryRow(ctx, query, account.ID, account.Email, account.PasswordHash, account.Role))
 	if isUniqueViolation(err) {
 		return Account{}, ErrEmailAlreadyExists
 	}
@@ -44,7 +44,7 @@ func (r *PostgresRepository) Create(ctx context.Context, account Account) (Accou
 
 func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (Account, error) {
 	const query = `
-		SELECT id, email, password_hash, created_at, updated_at
+		SELECT id, email, password_hash, role, created_at, updated_at
 		FROM auth_accounts
 		WHERE email = $1
 	`
@@ -75,6 +75,7 @@ func scanAccount(row accountRow) (Account, error) {
 		&account.ID,
 		&account.Email,
 		&account.PasswordHash,
+		&account.Role,
 		&account.CreatedAt,
 		&account.UpdatedAt,
 	)

@@ -24,6 +24,7 @@ func authMiddleware(validator authclient.Validator) gin.HandlerFunc {
 
 		ctx.Request.Header.Set("X-User-ID", claims.UserID)
 		ctx.Request.Header.Set("X-User-Email", claims.Email)
+		ctx.Request.Header.Set("X-User-Role", claims.Role)
 		ctx.Next()
 	}
 }

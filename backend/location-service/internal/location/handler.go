@@ -17,22 +17,37 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) UpdateDriverLocation(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
 	var request UpdateDriverLocationRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := h.service.UpdateDriverLocation(ctx.Request.Context(), ctx.Param("id"), request)
+	err := h.service.UpdateDriverLocation(ctx.Request.Context(), driverID(ctx), request)
 	h.writeEmptyResult(ctx, err)
 }
 
 func (h *Handler) SetDriverAvailable(ctx *gin.Context) {
-	h.writeEmptyResult(ctx, h.service.SetDriverAvailable(ctx.Request.Context(), ctx.Param("id")))
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
+	h.writeEmptyResult(ctx, h.service.SetDriverAvailable(ctx.Request.Context(), driverID(ctx)))
 }
 
 func (h *Handler) SetDriverUnavailable(ctx *gin.Context) {
-	h.writeEmptyResult(ctx, h.service.SetDriverUnavailable(ctx.Request.Context(), ctx.Param("id")))
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
+	h.writeEmptyResult(ctx, h.service.SetDriverUnavailable(ctx.Request.Context(), driverID(ctx)))
 }
 
 func (h *Handler) NearbyDrivers(ctx *gin.Context) {
@@ -85,4 +100,12 @@ type NearbyDriversRequest struct {
 	Longitude float64
 	RadiusKM  float64
 	Limit     int
+}
+
+func driverID(ctx *gin.Context) string {
+	if id := ctx.GetHeader("X-User-ID"); id != "" {
+		return id
+	}
+
+	return ctx.Param("id")
 }

@@ -9,6 +9,7 @@ import (
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
+var ErrInvalidRole = errors.New("invalid role")
 
 type Service struct {
 	repository  Repository
@@ -25,6 +26,11 @@ func NewService(repository Repository, tokenIssuer *TokenIssuer, profiles Profil
 }
 
 func (s *Service) Register(ctx context.Context, request RegisterRequest) (AuthResponse, error) {
+	role := strings.TrimSpace(request.Role)
+	if role != "rider" && role != "driver" {
+		return AuthResponse{}, ErrInvalidRole
+	}
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return AuthResponse{}, err
@@ -33,6 +39,7 @@ func (s *Service) Register(ctx context.Context, request RegisterRequest) (AuthRe
 	account, err := s.repository.Create(ctx, Account{
 		Email:        strings.TrimSpace(request.Email),
 		PasswordHash: string(passwordHash),
+		Role:         role,
 	})
 	if err != nil {
 		return AuthResponse{}, err
@@ -84,5 +91,6 @@ func (s *Service) authResponse(account Account) (AuthResponse, error) {
 		ExpiresAt:   expiresAt,
 		UserID:      account.ID,
 		Email:       account.Email,
+		Role:        account.Role,
 	}, nil
 }

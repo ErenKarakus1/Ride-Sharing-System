@@ -10,6 +10,7 @@ import (
 type Claims struct {
 	UserID string
 	Email  string
+	Role   string
 }
 
 type Validator interface {
@@ -37,5 +38,6 @@ func (v *GRPCValidator) Validate(ctx context.Context, accessToken string) (Claim
 	return Claims{
 		UserID: response.GetUserId(),
 		Email:  response.GetEmail(),
+		Role:   response.GetRole(),
 	}, nil
 }

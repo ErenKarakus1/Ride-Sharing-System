@@ -16,14 +16,17 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) Create(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "rider" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "rider role required"})
+		return
+	}
+
 	var request CreateRideRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if request.RiderID == "" {
-		request.RiderID = ctx.GetHeader("X-User-ID")
-	}
+	request.RiderID = ctx.GetHeader("X-User-ID")
 
 	created, err := h.service.Create(ctx.Request.Context(), request)
 	if errors.Is(err, ErrMissingRider) {
@@ -63,10 +66,18 @@ func (h *Handler) ListByRider(ctx *gin.Context) {
 }
 
 func (h *Handler) Accept(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
 	var request AcceptRideRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	if request.DriverID == "" {
+		request.DriverID = ctx.GetHeader("X-User-ID")
 	}
 
 	ride, err := h.service.Accept(ctx.Request.Context(), ctx.Param("id"), request.DriverID)
@@ -74,11 +85,21 @@ func (h *Handler) Accept(ctx *gin.Context) {
 }
 
 func (h *Handler) Start(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
 	ride, err := h.service.Start(ctx.Request.Context(), ctx.Param("id"))
 	h.writeRideResult(ctx, ride, err)
 }
 
 func (h *Handler) Complete(ctx *gin.Context) {
+	if ctx.GetHeader("X-User-Role") != "driver" {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
+		return
+	}
+
 	ride, err := h.service.Complete(ctx.Request.Context(), ctx.Param("id"))
 	h.writeRideResult(ctx, ride, err)
 }
@@ -112,5 +133,5 @@ type CreateRideRequest struct {
 }
 
 type AcceptRideRequest struct {
-	DriverID string `json:"driver_id" binding:"required"`
+	DriverID string `json:"driver_id"`
 }
