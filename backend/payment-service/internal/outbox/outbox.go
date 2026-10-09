@@ -39,15 +39,29 @@ func (s *EventStore) Publish(ctx context.Context, event events.Event) error {
 }
 
 func (s *EventStore) Pending(ctx context.Context, limit int) ([]Record, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
 	const query = `
-		SELECT id, event_type, event_key, payload
-		FROM payment_outbox_events
-		WHERE status IN ('pending', 'failed') AND attempts < 5
-		ORDER BY created_at
-		LIMIT $1
+		WITH next_events AS (
+			SELECT id
+			FROM payment_outbox_events
+			WHERE status IN ('pending', 'failed') AND attempts < 5
+			ORDER BY created_at
+			LIMIT $1
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE payment_outbox_events e
+		SET attempts = attempts + 1, updated_at = now()
+		FROM next_events
+		WHERE e.id = next_events.id
+		RETURNING e.id, e.event_type, e.event_key, e.payload
 	`
 
-	rows, err := s.db.Query(ctx, query, limit)
+	rows, err := tx.Query(ctx, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -64,11 +78,15 @@ func (s *EventStore) Pending(ctx context.Context, limit int) ([]Record, error) {
 		records = append(records, record)
 	}
 
-	return records, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return records, tx.Commit(ctx)
 }
 
 func (s *EventStore) MarkSent(ctx context.Context, id string) error {
-	const query = `UPDATE payment_outbox_events SET status = 'sent', updated_at = now() WHERE id = $1`
+	const query = `UPDATE payment_outbox_events SET status = 'sent', published_at = now(), updated_at = now() WHERE id = $1`
 	_, err := s.db.Exec(ctx, query, id)
 	return err
 }
@@ -76,7 +94,7 @@ func (s *EventStore) MarkSent(ctx context.Context, id string) error {
 func (s *EventStore) MarkFailed(ctx context.Context, id string) error {
 	const query = `
 		UPDATE payment_outbox_events
-		SET status = 'failed', attempts = attempts + 1, updated_at = now()
+		SET status = 'failed', updated_at = now()
 		WHERE id = $1
 	`
 	_, err := s.db.Exec(ctx, query, id)

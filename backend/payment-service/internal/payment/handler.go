@@ -29,6 +29,14 @@ func (h *Handler) Authorize(ctx *gin.Context) {
 	request.RiderID = ctx.GetHeader("X-User-ID")
 
 	payment, err := h.service.Authorize(ctx.Request.Context(), request)
+	if errors.Is(err, ErrInvalidPaymentAmount) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment amount"})
+		return
+	}
+	if errors.Is(err, ErrInvalidCurrency) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid currency"})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to authorize payment"})
 		return

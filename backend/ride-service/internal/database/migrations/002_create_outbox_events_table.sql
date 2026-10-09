@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS ride_outbox_events (
     payload JSONB NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
     attempts INTEGER NOT NULL DEFAULT 0,
+    published_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

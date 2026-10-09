@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +15,9 @@ import (
 func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userProxy *proxy.Proxy, rideProxy *proxy.Proxy, locationProxy *proxy.Proxy, matchingProxy *proxy.Proxy, pricingProxy *proxy.Proxy, notificationProxy *proxy.Proxy, paymentProxy *proxy.Proxy) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(requestID())
+	router.Use(requestTimeout(10 * time.Second))
+	router.Use(bodyLimit(1 << 20))
 	router.Use(requestLogger())
 
 	router.GET("/health", func(ctx *gin.Context) {
@@ -54,11 +58,44 @@ func requestLogger() gin.HandlerFunc {
 		ctx.Next()
 
 		log.Printf(
-			"%s %s %d %s",
+			"%s %s %d %s request_id=%s",
 			ctx.Request.Method,
 			ctx.Request.URL.Path,
 			ctx.Writer.Status(),
 			time.Since(startedAt),
+			ctx.Writer.Header().Get("X-Request-ID"),
 		)
+	}
+}
+
+func requestID() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		requestID := ctx.GetHeader("X-Request-ID")
+		if requestID == "" {
+			requestID = time.Now().UTC().Format("20060102150405.000000000")
+		}
+
+		ctx.Request.Header.Set("X-Request-ID", requestID)
+		ctx.Writer.Header().Set("X-Request-ID", requestID)
+		ctx.Next()
+	}
+}
+
+func requestTimeout(timeout time.Duration) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		requestContext, cancel := context.WithTimeout(ctx.Request.Context(), timeout)
+		defer cancel()
+
+		ctx.Request = ctx.Request.WithContext(requestContext)
+		ctx.Next()
+	}
+}
+
+func bodyLimit(limit int64) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.Request.Body != nil {
+			ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limit)
+		}
+		ctx.Next()
 	}
 }

@@ -58,6 +58,30 @@ func TestInvalidPaymentTransition(t *testing.T) {
 	}
 }
 
+func TestAuthorizeRejectsInvalidPaymentInput(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{})
+
+	_, err := service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:  "ride-1",
+		RiderID: "rider-1",
+		Amount:  0,
+	})
+	if err != ErrInvalidPaymentAmount {
+		t.Fatalf("expected invalid payment amount, got %v", err)
+	}
+
+	_, err = service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:   "ride-2",
+		RiderID:  "rider-1",
+		Amount:   10,
+		Currency: "TURKISH_LIRA",
+	})
+	if err != ErrInvalidCurrency {
+		t.Fatalf("expected invalid currency, got %v", err)
+	}
+}
+
 func TestCompletedRideCapturesAuthorizedPayment(t *testing.T) {
 	repository := newFakeRepository()
 	service := NewService(repository, noopPublisher{})

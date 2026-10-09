@@ -3,8 +3,10 @@ package ride
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -33,6 +35,10 @@ func (h *Handler) Create(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing rider"})
 		return
 	}
+	if errors.Is(err, ErrInvalidLocation) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid location"})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create ride"})
 		return
@@ -42,6 +48,10 @@ func (h *Handler) Create(ctx *gin.Context) {
 }
 
 func (h *Handler) Get(ctx *gin.Context) {
+	if !validUUIDParam(ctx, "id") {
+		return
+	}
+
 	found, err := h.service.Get(ctx.Request.Context(), ctx.Param("id"))
 	if errors.Is(err, ErrRideNotFound) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "ride not found"})
@@ -66,6 +76,10 @@ func (h *Handler) ListByRider(ctx *gin.Context) {
 }
 
 func (h *Handler) Accept(ctx *gin.Context) {
+	if !validUUIDParam(ctx, "id") {
+		return
+	}
+
 	if ctx.GetHeader("X-User-Role") != "driver" {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
 		return
@@ -85,6 +99,10 @@ func (h *Handler) Accept(ctx *gin.Context) {
 }
 
 func (h *Handler) Start(ctx *gin.Context) {
+	if !validUUIDParam(ctx, "id") {
+		return
+	}
+
 	if ctx.GetHeader("X-User-Role") != "driver" {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
 		return
@@ -95,6 +113,10 @@ func (h *Handler) Start(ctx *gin.Context) {
 }
 
 func (h *Handler) Complete(ctx *gin.Context) {
+	if !validUUIDParam(ctx, "id") {
+		return
+	}
+
 	if ctx.GetHeader("X-User-Role") != "driver" {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "driver role required"})
 		return
@@ -105,8 +127,21 @@ func (h *Handler) Complete(ctx *gin.Context) {
 }
 
 func (h *Handler) Cancel(ctx *gin.Context) {
+	if !validUUIDParam(ctx, "id") {
+		return
+	}
+
 	ride, err := h.service.Cancel(ctx.Request.Context(), ctx.Param("id"), ctx.GetHeader("X-User-ID"))
 	h.writeRideResult(ctx, ride, err)
+}
+
+func validUUIDParam(ctx *gin.Context, name string) bool {
+	if _, err := uuid.Parse(strings.TrimSpace(ctx.Param(name))); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid " + name})
+		return false
+	}
+
+	return true
 }
 
 func (h *Handler) writeRideResult(ctx *gin.Context, ride Ride, err error) {

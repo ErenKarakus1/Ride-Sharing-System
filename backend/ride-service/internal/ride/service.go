@@ -3,6 +3,7 @@ package ride
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
@@ -11,6 +12,7 @@ import (
 var ErrInvalidTransition = errors.New("invalid ride status transition")
 var ErrMissingRider = errors.New("missing rider")
 var ErrUnauthorizedRideAction = errors.New("unauthorized ride action")
+var ErrInvalidLocation = errors.New("invalid location")
 
 type Service struct {
 	repository Repository
@@ -28,6 +30,9 @@ func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, 
 	riderID := strings.TrimSpace(request.RiderID)
 	if riderID == "" {
 		return Ride{}, ErrMissingRider
+	}
+	if !validLocation(request.Pickup) || !validLocation(request.Dropoff) {
+		return Ride{}, ErrInvalidLocation
 	}
 
 	created, err := s.repository.Create(ctx, Ride{
@@ -178,4 +183,13 @@ func riderOrAssignedDriver(ride Ride, actorID string) bool {
 	}
 
 	return ride.DriverID != nil && trimmedActorID == *ride.DriverID
+}
+
+func validLocation(location Location) bool {
+	return !math.IsNaN(location.Latitude) &&
+		!math.IsNaN(location.Longitude) &&
+		location.Latitude >= -90 &&
+		location.Latitude <= 90 &&
+		location.Longitude >= -180 &&
+		location.Longitude <= 180
 }

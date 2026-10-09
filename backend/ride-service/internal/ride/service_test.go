@@ -63,6 +63,20 @@ func TestInvalidRideTransition(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsInvalidLocation(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{})
+
+	_, err := service.Create(context.Background(), CreateRideRequest{
+		RiderID: "rider-1",
+		Pickup:  Location{Latitude: 100, Longitude: 29},
+		Dropoff: Location{Latitude: 41.1, Longitude: 29.1},
+	})
+	if err != ErrInvalidLocation {
+		t.Fatalf("expected invalid location, got %v", err)
+	}
+}
+
 func TestOnlyAssignedDriverCanAdvanceRide(t *testing.T) {
 	repository := newFakeRepository()
 	service := NewService(repository, noopPublisher{})
@@ -106,7 +120,7 @@ func newFakeRepository() *fakeRepository {
 }
 
 func (r *fakeRepository) Create(ctx context.Context, ride Ride) (Ride, error) {
-	ride.ID = "ride-1"
+	ride.ID = "11111111-1111-4111-8111-111111111111"
 	ride.Status = StatusRequested
 	r.rides[ride.ID] = ride
 	return ride, nil

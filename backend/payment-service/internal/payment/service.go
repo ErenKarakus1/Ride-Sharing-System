@@ -10,6 +10,8 @@ import (
 )
 
 var ErrInvalidPaymentTransition = errors.New("invalid payment status transition")
+var ErrInvalidPaymentAmount = errors.New("invalid payment amount")
+var ErrInvalidCurrency = errors.New("invalid currency")
 
 type Service struct {
 	repository Repository
@@ -35,6 +37,13 @@ func (s *Service) Authorize(ctx context.Context, request AuthorizeRequest) (Paym
 	currency := strings.TrimSpace(request.Currency)
 	if currency == "" {
 		currency = "TRY"
+	}
+	currency = strings.ToUpper(currency)
+	if request.Amount <= 0 {
+		return Payment{}, ErrInvalidPaymentAmount
+	}
+	if len(currency) != 3 {
+		return Payment{}, ErrInvalidCurrency
 	}
 
 	payment, err := s.repository.Create(ctx, Payment{

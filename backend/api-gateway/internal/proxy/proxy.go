@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,9 +17,13 @@ func New(target string) *Proxy {
 		panic(err)
 	}
 
-	return &Proxy{
-		proxy: httputil.NewSingleHostReverseProxy(targetURL),
+	reverseProxy := httputil.NewSingleHostReverseProxy(targetURL)
+	reverseProxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, err error) {
+		log.Printf("proxy error target=%s path=%s request_id=%s error=%v", targetURL.String(), request.URL.Path, request.Header.Get("X-Request-ID"), err)
+		http.Error(writer, "upstream service unavailable", http.StatusBadGateway)
 	}
+
+	return &Proxy{proxy: reverseProxy}
 }
 
 func (p *Proxy) Handler() http.Handler {
