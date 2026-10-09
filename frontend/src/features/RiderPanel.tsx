@@ -1,8 +1,9 @@
 import { Car, CheckCircle2, CircleDollarSign, RefreshCcw } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
+import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
-import type { ActionState, FareEstimate, Location, Match, Ride } from "../types";
+import type { ActionState, FareEstimate, Location, Match, Payment, Ride } from "../types";
 
 type RiderPanelProps = {
   isRider: boolean;
@@ -12,6 +13,7 @@ type RiderPanelProps = {
   fare: FareEstimate | null;
   ride: Ride | null;
   match: Match | null;
+  payment: Payment | null;
   onPickupChange: (location: Location) => void;
   onDropoffChange: (location: Location) => void;
   onEstimateFare: () => void;
@@ -28,6 +30,7 @@ export function RiderPanel({
   fare,
   ride,
   match,
+  payment,
   onPickupChange,
   onDropoffChange,
   onEstimateFare,
@@ -46,6 +49,16 @@ export function RiderPanel({
         <CoordinateEditor title="Pickup" value={pickup} onChange={onPickupChange} />
         <CoordinateEditor title="Dropoff" value={dropoff} onChange={onDropoffChange} />
       </div>
+
+      <FlowSteps
+        steps={[
+          { label: "Estimate fare", done: Boolean(fare), active: isRider && !fare },
+          { label: "Request ride", done: Boolean(ride), active: Boolean(fare && !ride) },
+          { label: "Authorize payment", done: Boolean(payment), active: Boolean(ride && !payment) },
+          { label: "Match driver", done: Boolean(match), active: Boolean(ride && !match) },
+          { label: "Complete trip", done: ride?.status === "completed", active: Boolean(match && ride?.status !== "completed") },
+        ]}
+      />
 
       <div className="button-row">
         <IconButton icon={CircleDollarSign} label="Estimate" onClick={onEstimateFare} disabled={!isRider || action.loading} />

@@ -339,6 +339,43 @@ button:disabled {
   gap: 18px;
 }
 
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.flow-step {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dbe2dc;
+  border-radius: 8px;
+  padding: 8px 9px;
+  background: #ffffff;
+  color: #77807a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.flow-step svg {
+  flex: 0 0 auto;
+}
+
+.flow-step.active {
+  border-color: #e9b44c;
+  background: #fff7df;
+  color: #866118;
+}
+
+.flow-step.done {
+  border-color: #b7dbc7;
+  background: #dff3e8;
+  color: #16603f;
+}
+
 .page-grid {
   display: grid;
   gap: 18px;
@@ -554,6 +591,7 @@ button:disabled {
 
   .metrics,
   .flow-grid,
+  .flow-steps,
   .page-grid,
   .coordinate-grid,
   .state-grid,

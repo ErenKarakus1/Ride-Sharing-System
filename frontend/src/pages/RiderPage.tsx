@@ -2,7 +2,7 @@ import { CircleDollarSign, Clock3, MapPin, Navigation } from "lucide-react";
 import { Metric } from "../components/Metric";
 import { RiderPanel } from "../features/RiderPanel";
 import { formatCoord } from "../lib/format";
-import type { ActionState, FareEstimate, Location, Match, Ride } from "../types";
+import type { ActionState, FareEstimate, Location, Match, Payment, Ride } from "../types";
 
 type RiderPageProps = {
   isRider: boolean;
@@ -12,6 +12,7 @@ type RiderPageProps = {
   fare: FareEstimate | null;
   ride: Ride | null;
   match: Match | null;
+  payment: Payment | null;
   onPickupChange: (location: Location) => void;
   onDropoffChange: (location: Location) => void;
   onEstimateFare: () => void;

@@ -1,6 +1,7 @@
 import { Car, CheckCircle2, Crosshair, Navigation, Radio } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
+import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
 import type { ActionState, Location, Match, Payment, Ride } from "../types";
 
@@ -47,6 +48,17 @@ export function DriverPanel({
       </div>
 
       <CoordinateEditor title="Driver location" value={driverLocation} onChange={onDriverLocationChange} />
+
+      <FlowSteps
+        steps={[
+          { label: "Update location", done: Boolean(locationAction.message), active: isDriver && !locationAction.message },
+          { label: "Go available", done: locationAction.message === "Driver is available", active: Boolean(locationAction.message) },
+          { label: "Match ride", done: Boolean(match), active: Boolean(ride && !match) },
+          { label: "Accept", done: ride?.status === "accepted" || ride?.status === "started" || ride?.status === "completed", active: Boolean(match && ride?.status === "requested") },
+          { label: "Start", done: ride?.status === "started" || ride?.status === "completed", active: ride?.status === "accepted" },
+          { label: "Complete", done: ride?.status === "completed", active: ride?.status === "started" },
+        ]}
+      />
 
       <div className="button-row">
         <IconButton icon={Crosshair} label="Update" onClick={onUpdateDriverLocation} disabled={!isDriver || locationAction.loading} />

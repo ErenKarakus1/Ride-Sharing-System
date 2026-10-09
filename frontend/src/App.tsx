@@ -287,6 +287,7 @@ export function App() {
             fare={fare}
             ride={ride}
             match={match}
+            payment={payment}
             onPickupChange={setPickup}
             onDropoffChange={setDropoff}
             onEstimateFare={estimateFare}
