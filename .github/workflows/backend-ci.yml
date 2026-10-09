@@ -22,47 +22,7 @@ jobs:
             backend/**/go.sum
             tools/**/go.sum
 
-      - name: Test proto module
-        working-directory: backend/proto/gen/go
-        run: go test ./...
-
-      - name: Test api-gateway
-        working-directory: backend/api-gateway
-        run: go test ./...
-
-      - name: Test auth-service
-        working-directory: backend/auth-service
-        run: go test ./...
-
-      - name: Test user-service
-        working-directory: backend/user-service
-        run: go test ./...
-
-      - name: Test ride-service
-        working-directory: backend/ride-service
-        run: go test ./...
-
-      - name: Test location-service
-        working-directory: backend/location-service
-        run: go test ./...
-
-      - name: Test matching-service
-        working-directory: backend/matching-service
-        run: go test ./...
-
-      - name: Test notification-service
-        working-directory: backend/notification-service
-        run: go test ./...
-
-      - name: Test pricing-service
-        working-directory: backend/pricing-service
-        run: go test ./...
-
-      - name: Test payment-service
-        working-directory: backend/payment-service
-        run: go test ./...
-
-      - name: Run backend test tool
+      - name: Test backend modules
         working-directory: tools/test-all
         run: go run .
 
