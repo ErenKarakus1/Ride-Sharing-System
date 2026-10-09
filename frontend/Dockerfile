@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:22-alpine AS build
+FROM mirror.gcr.io/library/node:22-alpine AS build
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ ARG VITE_API_BASE_URL=http://localhost:8088
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run typecheck && npm run build
 
-FROM public.ecr.aws/docker/library/nginx:1.27-alpine
+FROM mirror.gcr.io/library/nginx:1.27-alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
