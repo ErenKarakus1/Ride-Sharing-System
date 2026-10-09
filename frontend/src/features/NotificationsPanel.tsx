@@ -1,7 +1,8 @@
 import { Bell } from "lucide-react";
+import type { NotificationItem } from "../types";
 
 type NotificationsPanelProps = {
-  notifications: string[];
+  notifications: NotificationItem[];
 };
 
 export function NotificationsPanel({ notifications }: NotificationsPanelProps) {
@@ -15,9 +16,22 @@ export function NotificationsPanel({ notifications }: NotificationsPanelProps) {
         {notifications.length === 0 ? (
           <p className="muted">No messages yet.</p>
         ) : (
-          notifications.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)
+          notifications.map((item, index) => (
+            <article className="notification-item" key={`${item.message}-${item.received_at}-${index}`}>
+              <strong>{item.message}</strong>
+              <span>{formatReceivedAt(item.received_at)}</span>
+            </article>
+          ))
         )}
       </div>
     </section>
   );
+}
+
+function formatReceivedAt(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
 }

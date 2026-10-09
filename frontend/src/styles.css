@@ -360,6 +360,62 @@ button:disabled {
   gap: 14px;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  border: 1px solid #e0e6e1;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfb;
+}
+
+.summary-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.summary-heading svg {
+  color: #186c8f;
+}
+
+.status-pill {
+  min-width: 70px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #e9eef0;
+  color: #17211f;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.status-pill.accepted,
+.status-pill.started,
+.status-pill.authorized {
+  background: #fff2cc;
+  color: #866118;
+}
+
+.status-pill.completed,
+.status-pill.captured {
+  background: #dff3e8;
+  color: #16603f;
+}
+
+.status-pill.failed,
+.status-pill.cancelled {
+  background: #ffe2dc;
+  color: #9d251c;
+}
+
 .coordinate-editor {
   border: 1px solid #e0e6e1;
   border-radius: 8px;
@@ -439,6 +495,24 @@ button:disabled {
   background: #f1f4f1;
 }
 
+.notification-item {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #f1f4f1;
+}
+
+.notification-item strong {
+  font-size: 14px;
+}
+
+.notification-item span {
+  color: #77807a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .timeline {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -483,6 +557,7 @@ button:disabled {
   .page-grid,
   .coordinate-grid,
   .state-grid,
+  .summary-grid,
   .data-strip,
   .timeline {
     grid-template-columns: 1fr;

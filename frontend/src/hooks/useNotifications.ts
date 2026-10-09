@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { WS_BASE } from "../config";
+import type { NotificationItem } from "../types";
 
 export function useNotifications(token?: string) {
-  const [notifications, setNotifications] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -26,8 +27,8 @@ export function useNotifications(token?: string) {
 }
 
 function pushNotification(
-  setNotifications: React.Dispatch<React.SetStateAction<string[]>>,
+  setNotifications: React.Dispatch<React.SetStateAction<NotificationItem[]>>,
   message: string,
 ) {
-  setNotifications((items) => [message, ...items].slice(0, 8));
+  setNotifications((items) => [{ message, received_at: new Date().toISOString() }, ...items].slice(0, 8));
 }

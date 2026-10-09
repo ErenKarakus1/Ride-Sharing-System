@@ -1,7 +1,8 @@
 import { NotificationsPanel } from "../features/NotificationsPanel";
+import type { NotificationItem } from "../types";
 
 type NotificationsPageProps = {
-  notifications: string[];
+  notifications: NotificationItem[];
 };
 
 export function NotificationsPage({ notifications }: NotificationsPageProps) {

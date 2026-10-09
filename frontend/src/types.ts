@@ -73,3 +73,8 @@ export type Payment = {
   created_at?: string;
   updated_at?: string;
 };
+
+export type NotificationItem = {
+  message: string;
+  received_at: string;
+};
