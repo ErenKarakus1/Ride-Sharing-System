@@ -12,6 +12,7 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/database"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/http"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/outbox"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/payment"
 )
 
@@ -32,8 +33,10 @@ func main() {
 	repository := payment.NewPostgresRepository(db)
 	publisher := events.NewKafkaPublisher(cfg.KafkaBrokers)
 	defer publisher.Close()
+	outboxStore := outbox.NewEventStore(db)
+	dispatcher := outbox.NewDispatcher(outboxStore, publisher)
 
-	service := payment.NewService(repository, publisher)
+	service := payment.NewService(repository, outboxStore)
 	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
 	defer consumer.Close()
 
@@ -59,6 +62,9 @@ func main() {
 	go func() {
 		errCh <- consumer.Run(ctx)
 	}()
+
+	log.Printf("starting payment outbox dispatcher")
+	go dispatcher.Run(ctx)
 
 	select {
 	case err := <-errCh:

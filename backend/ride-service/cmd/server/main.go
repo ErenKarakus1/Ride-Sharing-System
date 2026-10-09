@@ -15,6 +15,7 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
 	ridegrpc "github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/grpc"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/http"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/outbox"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/ride"
 	"google.golang.org/grpc"
 )
@@ -35,9 +36,11 @@ func main() {
 
 	publisher := events.NewKafkaPublisher(cfg.KafkaBrokers)
 	defer publisher.Close()
+	outboxStore := outbox.NewEventStore(db)
+	dispatcher := outbox.NewDispatcher(outboxStore, publisher)
 
 	repository := ride.NewPostgresRepository(db)
-	service := ride.NewService(repository, publisher)
+	service := ride.NewService(repository, outboxStore)
 	handler := ride.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
@@ -68,6 +71,9 @@ func main() {
 	go func() {
 		errCh <- grpcServer.Serve(grpcListener)
 	}()
+
+	log.Printf("starting ride outbox dispatcher")
+	go dispatcher.Run(ctx)
 
 	select {
 	case err := <-errCh:
