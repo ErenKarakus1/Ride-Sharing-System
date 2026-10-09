@@ -1,5 +1,5 @@
 import { Activity, LogIn, LogOut, Route, ShieldCheck, UserPlus } from "lucide-react";
-import type { AccountForm, Role, Session } from "../types";
+import type { AccountForm, Role, Sessions } from "../types";
 import { capitalize } from "../lib/format";
 import { Field } from "./Field";
 import { IconButton } from "./IconButton";
@@ -8,7 +8,7 @@ import { StatusLine } from "./StatusLine";
 type SidebarProps = {
   role: Role;
   activeForm: AccountForm;
-  session: Session | null;
+  sessions: Sessions;
   onRoleChange: (role: Role) => void;
   onFormChange: (form: AccountForm) => void;
   onRegister: () => void;
@@ -19,13 +19,15 @@ type SidebarProps = {
 export function Sidebar({
   role,
   activeForm,
-  session,
+  sessions,
   onRoleChange,
   onFormChange,
   onRegister,
   onLogin,
   onSignOut,
 }: SidebarProps) {
+  const session = sessions[role];
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -40,10 +42,10 @@ export function Sidebar({
 
       <div className="role-switch" aria-label="Role">
         <button className={role === "rider" ? "active" : ""} onClick={() => onRoleChange("rider")}>
-          Rider
+          Rider {sessions.rider ? "on" : "off"}
         </button>
         <button className={role === "driver" ? "active" : ""} onClick={() => onRoleChange("driver")}>
-          Driver
+          Driver {sessions.driver ? "on" : "off"}
         </button>
       </div>
 

@@ -9,13 +9,17 @@ import { RiderPanel } from "./features/RiderPanel";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useNotifications } from "./hooks/useNotifications";
 import { createApi, request } from "./lib/api";
+import { initialActionStates } from "./lib/actionState";
 import { capitalize, formatCoord } from "./lib/format";
 import { API_BASE, driverStart, initialDropoff, initialPickup, sampleAccount } from "./config";
-import type { AccountForm, FareEstimate, Location, Match, Payment, Ride, Role, Session } from "./types";
+import type { AccountForm, ActionKey, FareEstimate, Location, Match, Payment, Ride, Role, Session, Sessions } from "./types";
 
 export function App() {
   const [role, setRole] = useState<Role>("rider");
-  const [session, setSession] = useLocalStorage<Session | null>("ride-sharing-session", null);
+  const [sessions, setSessions] = useLocalStorage<Sessions>("ride-sharing-sessions", {
+    rider: null,
+    driver: null,
+  });
   const [riderForm, setRiderForm] = useState<AccountForm>(sampleAccount("rider"));
   const [driverForm, setDriverForm] = useState<AccountForm>(sampleAccount("driver"));
   const [pickup, setPickup] = useState<Location>(initialPickup);
@@ -25,65 +29,81 @@ export function App() {
   const [ride, setRide] = useState<Ride | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [status, setStatus] = useState("Ready");
-  const [error, setError] = useState("");
+  const [actions, setActions] = useState(initialActionStates);
 
   const activeForm = role === "rider" ? riderForm : driverForm;
   const setActiveForm = role === "rider" ? setRiderForm : setDriverForm;
-  const token = session?.access_token;
-  const api = useMemo(() => createApi(token), [token]);
-  const notifications = useNotifications(token);
+  const activeSession = sessions[role];
+  const riderApi = useMemo(() => createApi(sessions.rider?.access_token), [sessions.rider?.access_token]);
+  const driverApi = useMemo(() => createApi(sessions.driver?.access_token), [sessions.driver?.access_token]);
+  const notifications = useNotifications(sessions.rider?.access_token);
 
-  const isRider = session?.role === "rider";
-  const isDriver = session?.role === "driver";
+  const isRider = Boolean(sessions.rider);
+  const isDriver = Boolean(sessions.driver);
 
-  async function run<T>(action: () => Promise<T>, successMessage: string) {
-    setError("");
-    setStatus("Working...");
+  async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string) {
+    setActions((current) => ({
+      ...current,
+      [key]: { loading: true, message: "", error: "" },
+    }));
 
     try {
       const result = await action();
-      setStatus(successMessage);
+      setActions((current) => ({
+        ...current,
+        [key]: { loading: false, message: successMessage, error: "" },
+      }));
       return result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error");
-      setStatus("Needs attention");
+      setActions((current) => ({
+        ...current,
+        [key]: {
+          loading: false,
+          message: "",
+          error: err instanceof Error ? err.message : "Unexpected error",
+        },
+      }));
       return null;
     }
   }
 
   async function register() {
-    await run(async () => {
+    await run("auth", async () => {
       const response = await request<Session>("/api/v1/auth/register", {
         method: "POST",
         body: activeForm,
       });
-      setSession(response);
+      setSessions((current) => ({ ...current, [response.role]: response }));
       return response;
     }, `${capitalize(role)} registered`);
   }
 
   async function login() {
-    await run(async () => {
+    await run("auth", async () => {
       const response = await request<Session>("/api/v1/auth/login", {
         method: "POST",
         body: { email: activeForm.email, password: activeForm.password },
       });
-      setSession(response);
+      setSessions((current) => ({ ...current, [response.role]: response }));
       return response;
     }, `${capitalize(role)} signed in`);
   }
 
   async function estimateFare() {
     const response = await run(
-      () => api.post<FareEstimate>("/api/v1/fare-estimates", { pickup, dropoff }),
+      "fare",
+      () => riderApi.post<FareEstimate>("/api/v1/fare-estimates", { pickup, dropoff }),
       "Fare estimated",
     );
     if (response) setFare(response);
   }
 
   async function createRide() {
-    const response = await run(() => api.post<Ride>("/api/v1/rides", { pickup, dropoff }), "Ride requested");
+    const response = await run(
+      "ride",
+      () => riderApi.post<Ride>("/api/v1/rides", { pickup, dropoff }),
+      "Ride requested",
+    );
     if (response) {
       setRide(response);
       setMatch(null);
@@ -93,13 +113,17 @@ export function App() {
 
   async function authorizePayment() {
     if (!ride || !fare) {
-      setError("Create a ride and estimate fare first.");
+      setActions((current) => ({
+        ...current,
+        payment: { loading: false, message: "", error: "Create a ride and estimate fare first." },
+      }));
       return;
     }
 
     const response = await run(
+      "payment",
       () =>
-        api.post<Payment>("/api/v1/payments/authorize", {
+        riderApi.post<Payment>("/api/v1/payments/authorize", {
           ride_id: ride.id,
           amount: fare.amount,
           currency: fare.currency,
@@ -111,36 +135,49 @@ export function App() {
 
   async function refreshRide() {
     if (!ride) return;
-    const response = await run(() => api.get<Ride>(`/api/v1/rides/${ride.id}`), "Ride refreshed");
+    const response = await run("ride", () => riderApi.get<Ride>(`/api/v1/rides/${ride.id}`), "Ride refreshed");
     if (response) setRide(response);
   }
 
   async function refreshPayment() {
     if (!payment) return;
-    const response = await run(() => api.get<Payment>(`/api/v1/payments/${payment.id}`), "Payment refreshed");
+    const response = await run(
+      "payment",
+      () => riderApi.get<Payment>(`/api/v1/payments/${payment.id}`),
+      "Payment refreshed",
+    );
     if (response) setPayment(response);
   }
 
   async function updateDriverLocation() {
     await run(
-      () => api.put<void>(`/api/v1/drivers/${session?.user_id}/location`, driverLocation),
+      "driver-location",
+      () => driverApi.put<void>(`/api/v1/drivers/${sessions.driver?.user_id}/location`, driverLocation),
       "Driver location updated",
     );
   }
 
   async function setDriverAvailable() {
-    await run(() => api.post<void>(`/api/v1/drivers/${session?.user_id}/available`, {}), "Driver is available");
+    await run(
+      "driver-location",
+      () => driverApi.post<void>(`/api/v1/drivers/${sessions.driver?.user_id}/available`, {}),
+      "Driver is available",
+    );
   }
 
   async function findDriver() {
     if (!ride) {
-      setError("Create a ride first.");
+      setActions((current) => ({
+        ...current,
+        matching: { loading: false, message: "", error: "Create a ride first." },
+      }));
       return;
     }
 
     const response = await run(
+      "matching",
       () =>
-        api.post<Match>("/api/v1/matches", {
+        riderApi.post<Match>("/api/v1/matches", {
           ride_id: ride.id,
           pickup,
           radius_km: 5,
@@ -153,19 +190,31 @@ export function App() {
 
   async function acceptRide() {
     if (!ride) return;
-    const response = await run(() => api.post<Ride>(`/api/v1/rides/${ride.id}/accept`, {}), "Ride accepted");
+    const response = await run(
+      "lifecycle",
+      () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/accept`, {}),
+      "Ride accepted",
+    );
     if (response) setRide(response);
   }
 
   async function startRide() {
     if (!ride) return;
-    const response = await run(() => api.post<Ride>(`/api/v1/rides/${ride.id}/start`, {}), "Ride started");
+    const response = await run(
+      "lifecycle",
+      () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/start`, {}),
+      "Ride started",
+    );
     if (response) setRide(response);
   }
 
   async function completeRide() {
     if (!ride) return;
-    const response = await run(() => api.post<Ride>(`/api/v1/rides/${ride.id}/complete`, {}), "Ride completed");
+    const response = await run(
+      "lifecycle",
+      () => driverApi.post<Ride>(`/api/v1/rides/${ride.id}/complete`, {}),
+      "Ride completed",
+    );
     if (response) setRide(response);
   }
 
@@ -174,12 +223,12 @@ export function App() {
       <Sidebar
         role={role}
         activeForm={activeForm}
-        session={session}
+        sessions={sessions}
         onRoleChange={setRole}
         onFormChange={setActiveForm}
         onRegister={register}
         onLogin={login}
-        onSignOut={() => setSession(null)}
+        onSignOut={() => setSessions((current) => ({ ...current, [role]: null }))}
       />
 
       <section className="workspace">
@@ -188,8 +237,8 @@ export function App() {
             <p className="eyebrow">Gateway {API_BASE}</p>
             <h1>Trip operations</h1>
           </div>
-          <div className={`system-state ${error ? "error" : "ok"}`}>
-            <span>{error || status}</span>
+          <div className={`system-state ${actions.auth.error ? "error" : "ok"}`}>
+            <span>{actions.auth.loading ? "Signing in..." : actions.auth.error || actions.auth.message || activeSession?.email || "Ready"}</span>
           </div>
         </header>
 
@@ -203,6 +252,7 @@ export function App() {
         <section className="flow-grid">
           <RiderPanel
             isRider={isRider}
+            action={actions.ride.error || actions.ride.message || actions.ride.loading ? actions.ride : actions.fare}
             pickup={pickup}
             dropoff={dropoff}
             fare={fare}
@@ -217,6 +267,9 @@ export function App() {
           />
           <DriverPanel
             isDriver={isDriver}
+            locationAction={actions["driver-location"]}
+            matchingAction={actions.matching}
+            lifecycleAction={actions.lifecycle}
             driverLocation={driverLocation}
             ride={ride}
             match={match}
@@ -229,7 +282,7 @@ export function App() {
             onStartRide={startRide}
             onCompleteRide={completeRide}
           />
-          <LiveStatePanel ride={ride} payment={payment} onRefreshPayment={refreshPayment} />
+          <LiveStatePanel ride={ride} payment={payment} paymentAction={actions.payment} onRefreshPayment={refreshPayment} />
           <NotificationsPanel notifications={notifications} />
         </section>
       </section>

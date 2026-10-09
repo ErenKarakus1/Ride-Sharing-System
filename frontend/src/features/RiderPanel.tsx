@@ -2,10 +2,11 @@ import { Car, CheckCircle2, CircleDollarSign, RefreshCcw } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
 import { IconButton } from "../components/IconButton";
-import type { FareEstimate, Location, Match, Ride } from "../types";
+import type { ActionState, FareEstimate, Location, Match, Ride } from "../types";
 
 type RiderPanelProps = {
   isRider: boolean;
+  action: ActionState;
   pickup: Location;
   dropoff: Location;
   fare: FareEstimate | null;
@@ -21,6 +22,7 @@ type RiderPanelProps = {
 
 export function RiderPanel({
   isRider,
+  action,
   pickup,
   dropoff,
   fare,
@@ -37,7 +39,7 @@ export function RiderPanel({
     <section className="panel">
       <div className="panel-title">
         <h2>Rider flow</h2>
-        <span>{isRider ? "active" : "needs rider token"}</span>
+        <span>{action.loading ? "working" : action.error || action.message || (isRider ? "active" : "needs rider token")}</span>
       </div>
 
       <div className="coordinate-grid">
@@ -46,10 +48,10 @@ export function RiderPanel({
       </div>
 
       <div className="button-row">
-        <IconButton icon={CircleDollarSign} label="Estimate" onClick={onEstimateFare} disabled={!isRider} />
-        <IconButton icon={Car} label="Request ride" onClick={onCreateRide} disabled={!isRider} />
-        <IconButton icon={CheckCircle2} label="Authorize" onClick={onAuthorizePayment} disabled={!isRider} />
-        <IconButton icon={RefreshCcw} label="Refresh" onClick={onRefreshRide} disabled={!ride} />
+        <IconButton icon={CircleDollarSign} label="Estimate" onClick={onEstimateFare} disabled={!isRider || action.loading} />
+        <IconButton icon={Car} label="Request ride" onClick={onCreateRide} disabled={!isRider || action.loading} />
+        <IconButton icon={CheckCircle2} label="Authorize" onClick={onAuthorizePayment} disabled={!isRider || action.loading} />
+        <IconButton icon={RefreshCcw} label="Refresh" onClick={onRefreshRide} disabled={!ride || action.loading} />
       </div>
 
       <DataStrip

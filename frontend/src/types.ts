@@ -20,6 +20,23 @@ export type Session = {
   role: Role;
 };
 
+export type Sessions = Record<Role, Session | null>;
+
+export type ActionKey =
+  | "auth"
+  | "fare"
+  | "ride"
+  | "payment"
+  | "driver-location"
+  | "matching"
+  | "lifecycle";
+
+export type ActionState = {
+  loading: boolean;
+  message: string;
+  error: string;
+};
+
 export type FareEstimate = {
   distance_km: number;
   duration_minutes: number;

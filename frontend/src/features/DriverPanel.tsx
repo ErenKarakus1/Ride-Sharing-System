@@ -2,10 +2,13 @@ import { Car, CheckCircle2, Crosshair, Navigation, Radio } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
 import { IconButton } from "../components/IconButton";
-import type { Location, Match, Payment, Ride } from "../types";
+import type { ActionState, Location, Match, Payment, Ride } from "../types";
 
 type DriverPanelProps = {
   isDriver: boolean;
+  locationAction: ActionState;
+  matchingAction: ActionState;
+  lifecycleAction: ActionState;
   driverLocation: Location;
   ride: Ride | null;
   match: Match | null;
@@ -21,6 +24,9 @@ type DriverPanelProps = {
 
 export function DriverPanel({
   isDriver,
+  locationAction,
+  matchingAction,
+  lifecycleAction,
   driverLocation,
   ride,
   match,
@@ -37,18 +43,18 @@ export function DriverPanel({
     <section className="panel">
       <div className="panel-title">
         <h2>Driver flow</h2>
-        <span>{isDriver ? "active" : "needs driver token"}</span>
+        <span>{panelStatus(isDriver, locationAction, matchingAction, lifecycleAction)}</span>
       </div>
 
       <CoordinateEditor title="Driver location" value={driverLocation} onChange={onDriverLocationChange} />
 
       <div className="button-row">
-        <IconButton icon={Crosshair} label="Update" onClick={onUpdateDriverLocation} disabled={!isDriver} />
-        <IconButton icon={Radio} label="Available" onClick={onSetDriverAvailable} disabled={!isDriver} />
-        <IconButton icon={Navigation} label="Match" onClick={onFindDriver} disabled={!ride} />
-        <IconButton icon={CheckCircle2} label="Accept" onClick={onAcceptRide} disabled={!isDriver || !ride} />
-        <IconButton icon={Car} label="Start" onClick={onStartRide} disabled={!isDriver || !ride} />
-        <IconButton icon={CheckCircle2} label="Complete" onClick={onCompleteRide} disabled={!isDriver || !ride} />
+        <IconButton icon={Crosshair} label="Update" onClick={onUpdateDriverLocation} disabled={!isDriver || locationAction.loading} />
+        <IconButton icon={Radio} label="Available" onClick={onSetDriverAvailable} disabled={!isDriver || locationAction.loading} />
+        <IconButton icon={Navigation} label="Match" onClick={onFindDriver} disabled={!ride || matchingAction.loading} />
+        <IconButton icon={CheckCircle2} label="Accept" onClick={onAcceptRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
+        <IconButton icon={Car} label="Start" onClick={onStartRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
+        <IconButton icon={CheckCircle2} label="Complete" onClick={onCompleteRide} disabled={!isDriver || !ride || lifecycleAction.loading} />
       </div>
 
       <DataStrip
@@ -61,4 +67,12 @@ export function DriverPanel({
       />
     </section>
   );
+}
+
+function panelStatus(isDriver: boolean, ...actions: ActionState[]) {
+  const active = actions.find((action) => action.loading || action.error || action.message);
+  if (active?.loading) return "working";
+  if (active?.error) return active.error;
+  if (active?.message) return active.message;
+  return isDriver ? "active" : "needs driver token";
 }
