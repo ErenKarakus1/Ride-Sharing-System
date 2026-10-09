@@ -16,6 +16,7 @@ func NewRouter(authValidator authclient.Validator, authProxy *proxy.Proxy, userP
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(requestID())
+	router.Use(cors())
 	router.Use(requestTimeout(10 * time.Second))
 	router.Use(bodyLimit(1 << 20))
 	router.Use(requestLogger())

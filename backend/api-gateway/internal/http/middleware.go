@@ -8,6 +8,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func cors() gin.HandlerFunc {
+	allowedOrigins := map[string]struct{}{
+		"http://localhost:3000": {},
+		"http://localhost:5173": {},
+		"http://127.0.0.1:3000": {},
+		"http://127.0.0.1:5173": {},
+	}
+
+	return func(ctx *gin.Context) {
+		origin := ctx.GetHeader("Origin")
+		if _, ok := allowedOrigins[origin]; ok {
+			ctx.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			ctx.Writer.Header().Set("Vary", "Origin")
+			ctx.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+			ctx.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		}
+
+		if ctx.Request.Method == http.MethodOptions {
+			ctx.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		ctx.Next()
+	}
+}
+
 func authMiddleware(validator authclient.Validator) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		accessToken := bearerToken(ctx.GetHeader("Authorization"))
