@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/golang:1.26-alpine AS build
+FROM public.ecr.aws/docker/library/golang:1.26-alpine AS build
 
 WORKDIR /app
 COPY backend/proto/gen/go /proto/gen/go
@@ -7,7 +7,7 @@ RUN go mod download
 COPY backend/payment-service ./
 RUN go build -o /bin/payment-service ./cmd/server
 
-FROM mirror.gcr.io/library/alpine:3.21
+FROM public.ecr.aws/docker/library/alpine:3.21
 
 COPY --from=build /bin/payment-service /bin/payment-service
 EXPOSE 8087

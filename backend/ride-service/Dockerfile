@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/golang:1.26-alpine AS build
+FROM public.ecr.aws/docker/library/golang:1.26-alpine AS build
 
 WORKDIR /app
 COPY backend/proto/gen/go /proto/gen/go
@@ -7,7 +7,7 @@ RUN go mod download
 COPY backend/ride-service ./
 RUN go build -o /bin/ride-service ./cmd/server
 
-FROM mirror.gcr.io/library/alpine:3.21
+FROM public.ecr.aws/docker/library/alpine:3.21
 
 COPY --from=build /bin/ride-service /bin/ride-service
 EXPOSE 8082 9093
