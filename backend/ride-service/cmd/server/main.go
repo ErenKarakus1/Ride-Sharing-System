@@ -3,16 +3,20 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
+	ridev1 "github.com/ErenKarakus1/Ride-Sharing-System/backend/proto/gen/go/ride/v1"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/config"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/database"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
+	ridegrpc "github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/grpc"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/ride"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -37,19 +41,32 @@ func main() {
 	handler := ride.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
-	server := &http.Server{
-		Addr:              ":" + cfg.Port,
+	httpServer := &http.Server{
+		Addr:              ":" + cfg.HTTPPort,
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	grpcListener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+	if err != nil {
+		log.Fatalf("failed to listen for grpc: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	ridev1.RegisterRideServiceServer(grpcServer, ridegrpc.NewRideServer(service))
+
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	errCh := make(chan error, 1)
-	log.Printf("starting ride-service on port %s", cfg.Port)
+	errCh := make(chan error, 2)
+	log.Printf("starting ride-service http on port %s", cfg.HTTPPort)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- httpServer.ListenAndServe()
+	}()
+
+	log.Printf("starting ride-service grpc on port %s", cfg.GRPCPort)
+	go func() {
+		errCh <- grpcServer.Serve(grpcListener)
 	}()
 
 	select {
@@ -58,10 +75,12 @@ func main() {
 			log.Fatalf("ride-service stopped: %v", err)
 		}
 	case <-ctx.Done():
+		grpcServer.GracefulStop()
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		if err := server.Shutdown(shutdownCtx); err != nil {
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Fatalf("failed to shutdown ride-service: %v", err)
 		}
 	}

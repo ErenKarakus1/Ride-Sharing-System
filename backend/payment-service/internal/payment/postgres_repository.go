@@ -59,6 +59,26 @@ func (r *PostgresRepository) Get(ctx context.Context, id string) (Payment, error
 	return payment, nil
 }
 
+func (r *PostgresRepository) GetAuthorizedByRide(ctx context.Context, rideID string) (Payment, error) {
+	const query = `
+		SELECT id, ride_id, rider_id, driver_id, amount, currency, status, created_at, updated_at
+		FROM payments
+		WHERE ride_id = $1 AND status = $2
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	payment, err := scanPayment(r.db.QueryRow(ctx, query, strings.TrimSpace(rideID), StatusAuthorized))
+	if err == pgx.ErrNoRows {
+		return Payment{}, ErrPaymentNotFound
+	}
+	if err != nil {
+		return Payment{}, err
+	}
+
+	return payment, nil
+}
+
 func (r *PostgresRepository) UpdateStatus(ctx context.Context, id string, status Status) (Payment, error) {
 	const query = `
 		UPDATE payments

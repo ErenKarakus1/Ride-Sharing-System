@@ -10,6 +10,7 @@ import (
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/config"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/database"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/payment"
 )
@@ -29,7 +30,13 @@ func main() {
 	}
 
 	repository := payment.NewPostgresRepository(db)
-	service := payment.NewService(repository)
+	publisher := events.NewKafkaPublisher(cfg.KafkaBrokers)
+	defer publisher.Close()
+
+	service := payment.NewService(repository, publisher)
+	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
+	defer consumer.Close()
+
 	handler := payment.NewHandler(service)
 	router := httpapi.NewRouter(handler)
 
@@ -42,10 +49,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	log.Printf("starting payment-service on port %s", cfg.Port)
 	go func() {
 		errCh <- server.ListenAndServe()
+	}()
+
+	log.Printf("starting payment ride event consumer")
+	go func() {
+		errCh <- consumer.Run(ctx)
 	}()
 
 	select {

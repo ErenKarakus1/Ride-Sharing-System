@@ -118,8 +118,8 @@ func main() {
 	completed, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/complete", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
 	must("complete ride", err)
 
-	captured, err := post[paymentResponse](client, fmt.Sprintf("%s/api/v1/payments/%s/capture", baseURL, payment.ID), login.AccessToken, map[string]any{})
-	must("capture payment", err)
+	captured, err := waitForPaymentStatus(client, fmt.Sprintf("%s/api/v1/payments/%s", baseURL, payment.ID), login.AccessToken, "captured")
+	must("wait for captured payment", err)
 
 	fmt.Printf("E2E passed: rider=%s driver=%s matched_driver=%v ride=%s statuses=%s/%s/%s/%s fare=%.2f %s payment=%s payment_status=%s/%s\n",
 		register.UserID,
@@ -170,6 +170,52 @@ func post[T any](client *http.Client, url string, accessToken string, body any) 
 	}
 
 	return result, nil
+}
+
+func get[T any](client *http.Client, url string, accessToken string) (T, error) {
+	var result T
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return result, err
+	}
+	if accessToken != "" {
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return result, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		return result, fmt.Errorf("%s returned status %d", url, response.StatusCode)
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func waitForPaymentStatus(client *http.Client, url string, accessToken string, status string) (paymentResponse, error) {
+	var payment paymentResponse
+	var err error
+	for range 20 {
+		payment, err = get[paymentResponse](client, url, accessToken)
+		if err != nil {
+			return paymentResponse{}, err
+		}
+		if payment.Status == status {
+			return payment, nil
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return payment, fmt.Errorf("payment status remained %q, expected %q", payment.Status, status)
 }
 
 func postNoContent(client *http.Client, url string, accessToken string, body any) error {

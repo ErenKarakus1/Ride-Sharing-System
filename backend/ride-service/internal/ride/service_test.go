@@ -28,7 +28,7 @@ func TestRideTransitions(t *testing.T) {
 		t.Fatalf("expected accepted, got %s", accepted.Status)
 	}
 
-	started, err := service.Start(context.Background(), created.ID)
+	started, err := service.Start(context.Background(), created.ID, "driver-1")
 	if err != nil {
 		t.Fatalf("start ride: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestRideTransitions(t *testing.T) {
 		t.Fatalf("expected started, got %s", started.Status)
 	}
 
-	completed, err := service.Complete(context.Background(), created.ID)
+	completed, err := service.Complete(context.Background(), created.ID, "driver-1")
 	if err != nil {
 		t.Fatalf("complete ride: %v", err)
 	}
@@ -58,8 +58,34 @@ func TestInvalidRideTransition(t *testing.T) {
 		t.Fatalf("create ride: %v", err)
 	}
 
-	if _, err := service.Start(context.Background(), created.ID); err != ErrInvalidTransition {
+	if _, err := service.Start(context.Background(), created.ID, "driver-1"); err != ErrInvalidTransition {
 		t.Fatalf("expected invalid transition, got %v", err)
+	}
+}
+
+func TestOnlyAssignedDriverCanAdvanceRide(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{})
+
+	created, err := service.Create(context.Background(), CreateRideRequest{
+		RiderID: "rider-1",
+		Pickup:  Location{Latitude: 41.0, Longitude: 29.0},
+		Dropoff: Location{Latitude: 41.1, Longitude: 29.1},
+	})
+	if err != nil {
+		t.Fatalf("create ride: %v", err)
+	}
+
+	if _, err := service.Accept(context.Background(), created.ID, "rider-1"); err != ErrUnauthorizedRideAction {
+		t.Fatalf("expected unauthorized self-accept, got %v", err)
+	}
+
+	accepted, err := service.Accept(context.Background(), created.ID, "driver-1")
+	if err != nil {
+		t.Fatalf("accept ride: %v", err)
+	}
+	if _, err := service.Start(context.Background(), accepted.ID, "driver-2"); err != ErrUnauthorizedRideAction {
+		t.Fatalf("expected unauthorized driver start, got %v", err)
 	}
 }
 

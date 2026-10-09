@@ -90,7 +90,7 @@ func (h *Handler) Start(ctx *gin.Context) {
 		return
 	}
 
-	ride, err := h.service.Start(ctx.Request.Context(), ctx.Param("id"))
+	ride, err := h.service.Start(ctx.Request.Context(), ctx.Param("id"), ctx.GetHeader("X-User-ID"))
 	h.writeRideResult(ctx, ride, err)
 }
 
@@ -100,12 +100,12 @@ func (h *Handler) Complete(ctx *gin.Context) {
 		return
 	}
 
-	ride, err := h.service.Complete(ctx.Request.Context(), ctx.Param("id"))
+	ride, err := h.service.Complete(ctx.Request.Context(), ctx.Param("id"), ctx.GetHeader("X-User-ID"))
 	h.writeRideResult(ctx, ride, err)
 }
 
 func (h *Handler) Cancel(ctx *gin.Context) {
-	ride, err := h.service.Cancel(ctx.Request.Context(), ctx.Param("id"))
+	ride, err := h.service.Cancel(ctx.Request.Context(), ctx.Param("id"), ctx.GetHeader("X-User-ID"))
 	h.writeRideResult(ctx, ride, err)
 }
 
@@ -116,6 +116,10 @@ func (h *Handler) writeRideResult(ctx *gin.Context, ride Ride, err error) {
 	}
 	if errors.Is(err, ErrInvalidTransition) {
 		ctx.JSON(http.StatusConflict, gin.H{"error": "invalid ride status transition"})
+		return
+	}
+	if errors.Is(err, ErrUnauthorizedRideAction) {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "unauthorized ride action"})
 		return
 	}
 	if err != nil {

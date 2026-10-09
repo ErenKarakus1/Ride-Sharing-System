@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package ride.v1;
+
+option go_package = "github.com/ErenKarakus1/Ride-Sharing-System/backend/proto/gen/go/ride/v1;ridev1";
+
+service RideService {
+  rpc GetRide(GetRideRequest) returns (Ride);
+  rpc ListRiderRides(ListRiderRidesRequest) returns (ListRiderRidesResponse);
+}
+
+message GetRideRequest {
+  string id = 1;
+}
+
+message ListRiderRidesRequest {
+  string rider_id = 1;
+}
+
+message ListRiderRidesResponse {
+  repeated Ride rides = 1;
+}
+
+message Ride {
+  string id = 1;
+  string rider_id = 2;
+  string driver_id = 3;
+  Location pickup = 4;
+  Location dropoff = 5;
+  string status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+  string address = 3;
+}

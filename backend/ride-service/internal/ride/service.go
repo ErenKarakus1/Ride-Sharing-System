@@ -10,6 +10,7 @@ import (
 
 var ErrInvalidTransition = errors.New("invalid ride status transition")
 var ErrMissingRider = errors.New("missing rider")
+var ErrUnauthorizedRideAction = errors.New("unauthorized ride action")
 
 type Service struct {
 	repository Repository
@@ -71,6 +72,10 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 	}
 
 	trimmedDriverID := strings.TrimSpace(driverID)
+	if trimmedDriverID == "" || trimmedDriverID == current.RiderID {
+		return Ride{}, ErrUnauthorizedRideAction
+	}
+
 	updated, err := s.repository.UpdateStatus(ctx, id, StatusAccepted, &trimmedDriverID)
 	if err != nil {
 		return Ride{}, err
@@ -79,13 +84,16 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 	return updated, s.publishRideEvent(ctx, "ride.accepted", updated)
 }
 
-func (s *Service) Start(ctx context.Context, id string) (Ride, error) {
+func (s *Service) Start(ctx context.Context, id string, driverID string) (Ride, error) {
 	current, err := s.Get(ctx, id)
 	if err != nil {
 		return Ride{}, err
 	}
 	if current.Status != StatusAccepted {
 		return Ride{}, ErrInvalidTransition
+	}
+	if !driverOwnsRide(current, driverID) {
+		return Ride{}, ErrUnauthorizedRideAction
 	}
 
 	updated, err := s.repository.UpdateStatus(ctx, id, StatusStarted, nil)
@@ -96,13 +104,16 @@ func (s *Service) Start(ctx context.Context, id string) (Ride, error) {
 	return updated, s.publishRideEvent(ctx, "ride.started", updated)
 }
 
-func (s *Service) Complete(ctx context.Context, id string) (Ride, error) {
+func (s *Service) Complete(ctx context.Context, id string, driverID string) (Ride, error) {
 	current, err := s.Get(ctx, id)
 	if err != nil {
 		return Ride{}, err
 	}
 	if current.Status != StatusStarted {
 		return Ride{}, ErrInvalidTransition
+	}
+	if !driverOwnsRide(current, driverID) {
+		return Ride{}, ErrUnauthorizedRideAction
 	}
 
 	updated, err := s.repository.UpdateStatus(ctx, id, StatusCompleted, nil)
@@ -113,13 +124,16 @@ func (s *Service) Complete(ctx context.Context, id string) (Ride, error) {
 	return updated, s.publishRideEvent(ctx, "ride.completed", updated)
 }
 
-func (s *Service) Cancel(ctx context.Context, id string) (Ride, error) {
+func (s *Service) Cancel(ctx context.Context, id string, actorID string) (Ride, error) {
 	current, err := s.Get(ctx, id)
 	if err != nil {
 		return Ride{}, err
 	}
 	if current.Status == StatusCompleted || current.Status == StatusCancelled {
 		return Ride{}, ErrInvalidTransition
+	}
+	if !riderOrAssignedDriver(current, actorID) {
+		return Ride{}, ErrUnauthorizedRideAction
 	}
 
 	updated, err := s.repository.UpdateStatus(ctx, id, StatusCancelled, nil)
@@ -136,4 +150,20 @@ func (s *Service) publishRideEvent(ctx context.Context, eventType string, ride R
 		Key:  ride.ID,
 		Data: ride,
 	})
+}
+
+func driverOwnsRide(ride Ride, driverID string) bool {
+	return ride.DriverID != nil && strings.TrimSpace(driverID) == *ride.DriverID
+}
+
+func riderOrAssignedDriver(ride Ride, actorID string) bool {
+	trimmedActorID := strings.TrimSpace(actorID)
+	if trimmedActorID == "" {
+		return false
+	}
+	if trimmedActorID == ride.RiderID {
+		return true
+	}
+
+	return ride.DriverID != nil && trimmedActorID == *ride.DriverID
 }

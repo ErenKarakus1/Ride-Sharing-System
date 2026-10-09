@@ -33,8 +33,10 @@ func main() {
 	go hub.Run(ctx)
 
 	service := notification.NewService(hub)
-	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
-	defer consumer.Close()
+	rideConsumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup+"-rides", service)
+	defer rideConsumer.Close()
+	paymentConsumer := events.NewPaymentKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup+"-payments", service)
+	defer paymentConsumer.Close()
 
 	router := httpapi.NewRouter(hub, validator)
 	server := &http.Server{
@@ -43,7 +45,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 
 	log.Printf("starting notification-service on port %s", cfg.Port)
 	go func() {
@@ -52,7 +54,12 @@ func main() {
 
 	log.Printf("starting ride event consumer")
 	go func() {
-		errCh <- consumer.Run(ctx)
+		errCh <- rideConsumer.Run(ctx)
+	}()
+
+	log.Printf("starting payment event consumer")
+	go func() {
+		errCh <- paymentConsumer.Run(ctx)
 	}()
 
 	select {

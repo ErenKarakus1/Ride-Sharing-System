@@ -10,11 +10,18 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-const rideEventsTopic = "ride.events"
+const (
+	rideEventsTopic    = "ride.events"
+	paymentEventsTopic = "payment.events"
+)
 
 type KafkaConsumer struct {
 	reader  *kafka.Reader
-	handler RideEventHandler
+	handler MessageHandler
+}
+
+type MessageHandler interface {
+	HandleMessage(ctx context.Context, value []byte) error
 }
 
 func NewKafkaConsumer(brokers string, groupID string, handler RideEventHandler) *KafkaConsumer {
@@ -24,7 +31,18 @@ func NewKafkaConsumer(brokers string, groupID string, handler RideEventHandler) 
 			Topic:   rideEventsTopic,
 			GroupID: groupID,
 		}),
-		handler: handler,
+		handler: rideMessageHandler{handler: handler},
+	}
+}
+
+func NewPaymentKafkaConsumer(brokers string, groupID string, handler PaymentEventHandler) *KafkaConsumer {
+	return &KafkaConsumer{
+		reader: kafka.NewReader(kafka.ReaderConfig{
+			Brokers: splitBrokers(brokers),
+			Topic:   paymentEventsTopic,
+			GroupID: groupID,
+		}),
+		handler: paymentMessageHandler{handler: handler},
 	}
 }
 
@@ -39,14 +57,13 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 			return err
 		}
 
-		var event RideEvent
-		if err := json.Unmarshal(message.Value, &event); err != nil {
-			log.Printf("failed to decode ride event: %v", err)
-			_ = c.reader.CommitMessages(ctx, message)
-			continue
-		}
+		if err := c.handler.HandleMessage(ctx, message.Value); err != nil {
+			if errors.Is(err, errInvalidMessage) {
+				log.Printf("failed to decode event: %v", err)
+				_ = c.reader.CommitMessages(ctx, message)
+				continue
+			}
 
-		if err := c.handler.HandleRideEvent(ctx, event); err != nil {
 			return err
 		}
 
@@ -55,6 +72,34 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 		}
 	}
 }
+
+type rideMessageHandler struct {
+	handler RideEventHandler
+}
+
+func (h rideMessageHandler) HandleMessage(ctx context.Context, value []byte) error {
+	var event RideEvent
+	if err := json.Unmarshal(value, &event); err != nil {
+		return errors.Join(errInvalidMessage, err)
+	}
+
+	return h.handler.HandleRideEvent(ctx, event)
+}
+
+type paymentMessageHandler struct {
+	handler PaymentEventHandler
+}
+
+func (h paymentMessageHandler) HandleMessage(ctx context.Context, value []byte) error {
+	var event PaymentEvent
+	if err := json.Unmarshal(value, &event); err != nil {
+		return errors.Join(errInvalidMessage, err)
+	}
+
+	return h.handler.HandlePaymentEvent(ctx, event)
+}
+
+var errInvalidMessage = errors.New("invalid kafka message")
 
 func (c *KafkaConsumer) Close() error {
 	return c.reader.Close()

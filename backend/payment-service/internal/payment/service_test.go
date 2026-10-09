@@ -3,11 +3,13 @@ package payment
 import (
 	"context"
 	"testing"
+
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
 )
 
 func TestPaymentTransitions(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository)
+	service := NewService(repository, noopPublisher{})
 
 	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -40,7 +42,7 @@ func TestPaymentTransitions(t *testing.T) {
 
 func TestInvalidPaymentTransition(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository)
+	service := NewService(repository, noopPublisher{})
 
 	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -53,6 +55,36 @@ func TestInvalidPaymentTransition(t *testing.T) {
 
 	if _, err := service.Refund(context.Background(), authorized.ID); err != ErrInvalidPaymentTransition {
 		t.Fatalf("expected invalid transition, got %v", err)
+	}
+}
+
+func TestCompletedRideCapturesAuthorizedPayment(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{})
+
+	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:  "ride-1",
+		RiderID: "rider-1",
+		Amount:  100,
+	})
+	if err != nil {
+		t.Fatalf("authorize payment: %v", err)
+	}
+
+	err = service.HandleRideEvent(context.Background(), events.RideEvent{
+		Type: "ride.completed",
+		Data: events.RideEventData{ID: authorized.RideID},
+	})
+	if err != nil {
+		t.Fatalf("handle ride event: %v", err)
+	}
+
+	captured, err := service.Get(context.Background(), authorized.ID)
+	if err != nil {
+		t.Fatalf("get payment: %v", err)
+	}
+	if captured.Status != StatusCaptured {
+		t.Fatalf("expected captured, got %s", captured.Status)
 	}
 }
 
@@ -81,6 +113,16 @@ func (r *fakeRepository) Get(ctx context.Context, id string) (Payment, error) {
 	return payment, nil
 }
 
+func (r *fakeRepository) GetAuthorizedByRide(ctx context.Context, rideID string) (Payment, error) {
+	for _, payment := range r.payments {
+		if payment.RideID == rideID && payment.Status == StatusAuthorized {
+			return payment, nil
+		}
+	}
+
+	return Payment{}, ErrPaymentNotFound
+}
+
 func (r *fakeRepository) UpdateStatus(ctx context.Context, id string, status Status) (Payment, error) {
 	payment, ok := r.payments[id]
 	if !ok {
@@ -90,4 +132,10 @@ func (r *fakeRepository) UpdateStatus(ctx context.Context, id string, status Sta
 	payment.Status = status
 	r.payments[id] = payment
 	return payment, nil
+}
+
+type noopPublisher struct{}
+
+func (noopPublisher) Publish(ctx context.Context, event events.Event) error {
+	return nil
 }
