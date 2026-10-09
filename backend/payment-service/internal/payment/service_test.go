@@ -113,6 +113,30 @@ func TestCompletedRideCapturesAuthorizedPayment(t *testing.T) {
 	}
 }
 
+func TestGetCapturesAuthorizedPaymentForCompletedRide(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"})
+
+	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:  "ride-1",
+		RiderID: "rider-1",
+		Amount:  100,
+	})
+	if err != nil {
+		t.Fatalf("authorize payment: %v", err)
+	}
+
+	service.rides = fakeRideClient{riderID: "rider-1", status: "completed"}
+
+	captured, err := service.Get(context.Background(), authorized.ID)
+	if err != nil {
+		t.Fatalf("get payment: %v", err)
+	}
+	if captured.Status != StatusCaptured {
+		t.Fatalf("expected captured, got %s", captured.Status)
+	}
+}
+
 func TestAuthorizeRejectsPaymentForDifferentRider(t *testing.T) {
 	repository := newFakeRepository()
 	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "other-rider", status: "requested"})

@@ -90,11 +90,16 @@ func (s *Service) verifyRideForPayment(ctx context.Context, request AuthorizeReq
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Payment, error) {
-	return s.repository.Get(ctx, strings.TrimSpace(id))
+	payment, err := s.repository.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return Payment{}, err
+	}
+
+	return s.reconcilePaymentWithRide(ctx, payment)
 }
 
 func (s *Service) Capture(ctx context.Context, id string) (Payment, error) {
-	current, err := s.Get(ctx, id)
+	current, err := s.repository.Get(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return Payment{}, err
 	}
@@ -102,12 +107,32 @@ func (s *Service) Capture(ctx context.Context, id string) (Payment, error) {
 		return Payment{}, ErrInvalidPaymentTransition
 	}
 
-	payment, err := s.repository.UpdateStatus(ctx, id, StatusCaptured)
+	return s.captureAuthorized(ctx, current)
+}
+
+func (s *Service) captureAuthorized(ctx context.Context, current Payment) (Payment, error) {
+	payment, err := s.repository.UpdateStatus(ctx, current.ID, StatusCaptured)
 	if err != nil {
 		return Payment{}, err
 	}
 
 	return payment, s.publishPaymentEvent(ctx, "payment.captured", payment)
+}
+
+func (s *Service) reconcilePaymentWithRide(ctx context.Context, payment Payment) (Payment, error) {
+	if payment.Status != StatusAuthorized || s.rides == nil {
+		return payment, nil
+	}
+
+	ride, err := s.rides.GetRide(ctx, payment.RideID)
+	if err != nil {
+		return payment, nil
+	}
+	if ride.Status != "completed" {
+		return payment, nil
+	}
+
+	return s.captureAuthorized(ctx, payment)
 }
 
 func (s *Service) Refund(ctx context.Context, id string) (Payment, error) {
@@ -141,7 +166,7 @@ func (s *Service) HandleRideEvent(ctx context.Context, event events.RideEvent) e
 		return err
 	}
 
-	_, err = s.Capture(ctx, payment.ID)
+	_, err = s.captureAuthorized(ctx, payment)
 	return err
 }
 
