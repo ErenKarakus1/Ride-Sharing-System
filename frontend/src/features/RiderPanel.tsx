@@ -3,6 +3,7 @@ import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
 import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
+import { locationPresets } from "../config";
 import type { ActionState, FareEstimate, Location, Match, Payment, Ride } from "../types";
 
 type RiderPanelProps = {
@@ -46,8 +47,8 @@ export function RiderPanel({
       </div>
 
       <div className="coordinate-grid">
-        <CoordinateEditor title="Pickup" value={pickup} onChange={onPickupChange} />
-        <CoordinateEditor title="Dropoff" value={dropoff} onChange={onDropoffChange} />
+        <CoordinateEditor title="Pickup" value={pickup} presets={locationPresets} onChange={onPickupChange} />
+        <CoordinateEditor title="Dropoff" value={dropoff} presets={locationPresets} onChange={onDropoffChange} />
       </div>
 
       <FlowSteps

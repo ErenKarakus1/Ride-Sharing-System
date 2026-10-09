@@ -460,6 +460,29 @@ button:disabled {
   background: #fbfcfb;
 }
 
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.preset {
+  min-height: 30px;
+  border: 1px solid #dbe2dc;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #17211f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.preset:hover {
+  border-color: #186c8f;
+  color: #186c8f;
+}
+
 .data-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

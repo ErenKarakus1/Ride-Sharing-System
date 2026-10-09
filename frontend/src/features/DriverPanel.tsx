@@ -3,6 +3,7 @@ import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
 import { FlowSteps } from "../components/FlowSteps";
 import { IconButton } from "../components/IconButton";
+import { locationPresets } from "../config";
 import type { ActionState, Location, Match, Payment, Ride } from "../types";
 
 type DriverPanelProps = {
@@ -47,7 +48,12 @@ export function DriverPanel({
         <span>{panelStatus(isDriver, locationAction, matchingAction, lifecycleAction)}</span>
       </div>
 
-      <CoordinateEditor title="Driver location" value={driverLocation} onChange={onDriverLocationChange} />
+      <CoordinateEditor
+        title="Driver location"
+        value={driverLocation}
+        presets={locationPresets}
+        onChange={onDriverLocationChange}
+      />
 
       <FlowSteps
         steps={[

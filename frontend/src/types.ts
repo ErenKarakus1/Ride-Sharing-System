@@ -5,6 +5,11 @@ export type Location = {
   longitude: number;
 };
 
+export type LocationPreset = {
+  label: string;
+  location: Location;
+};
+
 export type AccountForm = {
   email: string;
   password: string;
