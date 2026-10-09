@@ -166,11 +166,15 @@ services:
       PORT: 8087
       DATABASE_URL: postgres://rideshare:rideshare@postgres:5432/rideshare?sslmode=disable
       KAFKA_BROKERS: kafka:9092
+      RIDE_SERVICE_GRPC_ADDR: ride-service:9093
+      INTERNAL_SERVICE_TOKEN: local-internal-service-token
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      ride-service:
+        condition: service_started
     restart: unless-stopped
     ports:
       - "8087:8087"

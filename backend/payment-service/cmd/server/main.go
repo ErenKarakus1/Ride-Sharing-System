@@ -14,6 +14,9 @@ import (
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/outbox"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/payment"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/rideclient"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -30,13 +33,20 @@ func main() {
 		log.Fatalf("failed to run database migrations: %v", err)
 	}
 
+	rideConn, err := grpc.NewClient(cfg.RideServiceGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create ride-service client: %v", err)
+	}
+	defer rideConn.Close()
+	rideClient := rideclient.NewGRPCClient(rideConn, cfg.InternalToken)
+
 	repository := payment.NewPostgresRepository(db)
 	publisher := events.NewKafkaPublisher(cfg.KafkaBrokers)
 	defer publisher.Close()
 	outboxStore := outbox.NewEventStore(db)
 	dispatcher := outbox.NewDispatcher(outboxStore, publisher)
 
-	service := payment.NewService(repository, outboxStore)
+	service := payment.NewService(repository, outboxStore, rideClient)
 	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
 	defer consumer.Close()
 

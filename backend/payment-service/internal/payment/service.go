@@ -7,25 +7,34 @@ import (
 	"strings"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/rideclient"
 )
 
 var ErrInvalidPaymentTransition = errors.New("invalid payment status transition")
 var ErrInvalidPaymentAmount = errors.New("invalid payment amount")
 var ErrInvalidCurrency = errors.New("invalid currency")
+var ErrRidePaymentNotAllowed = errors.New("ride is not payable")
+var ErrRideRiderMismatch = errors.New("payment rider does not match ride rider")
 
 type Service struct {
 	repository Repository
 	publisher  events.Publisher
+	rides      rideclient.Client
 }
 
-func NewService(repository Repository, publisher events.Publisher) *Service {
+func NewService(repository Repository, publisher events.Publisher, rides rideclient.Client) *Service {
 	return &Service{
 		repository: repository,
 		publisher:  publisher,
+		rides:      rides,
 	}
 }
 
 func (s *Service) Authorize(ctx context.Context, request AuthorizeRequest) (Payment, error) {
+	if err := s.verifyRideForPayment(ctx, request); err != nil {
+		return Payment{}, err
+	}
+
 	existing, err := s.repository.GetByRide(ctx, request.RideID)
 	if err == nil {
 		return existing, nil
@@ -59,6 +68,25 @@ func (s *Service) Authorize(ctx context.Context, request AuthorizeRequest) (Paym
 	}
 
 	return payment, s.publishPaymentEvent(ctx, "payment.authorized", payment)
+}
+
+func (s *Service) verifyRideForPayment(ctx context.Context, request AuthorizeRequest) error {
+	if s.rides == nil {
+		return nil
+	}
+
+	ride, err := s.rides.GetRide(ctx, strings.TrimSpace(request.RideID))
+	if err != nil {
+		return err
+	}
+	if ride.RiderID != strings.TrimSpace(request.RiderID) {
+		return ErrRideRiderMismatch
+	}
+	if ride.Status == "completed" || ride.Status == "cancelled" {
+		return ErrRidePaymentNotAllowed
+	}
+
+	return nil
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Payment, error) {

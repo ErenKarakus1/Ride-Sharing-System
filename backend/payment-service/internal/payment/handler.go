@@ -37,6 +37,14 @@ func (h *Handler) Authorize(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid currency"})
 		return
 	}
+	if errors.Is(err, ErrRideRiderMismatch) {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "payment rider does not match ride rider"})
+		return
+	}
+	if errors.Is(err, ErrRidePaymentNotAllowed) {
+		ctx.JSON(http.StatusConflict, gin.H{"error": "ride is not payable"})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to authorize payment"})
 		return

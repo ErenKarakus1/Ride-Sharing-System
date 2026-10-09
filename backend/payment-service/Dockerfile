@@ -1,6 +1,7 @@
 FROM golang:1.26-alpine AS build
 
 WORKDIR /app
+COPY backend/proto/gen/go /proto/gen/go
 COPY backend/payment-service/go.mod backend/payment-service/go.sum ./
 RUN go mod download
 COPY backend/payment-service ./

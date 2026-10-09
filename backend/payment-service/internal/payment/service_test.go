@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/rideclient"
 )
 
 func TestPaymentTransitions(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository, noopPublisher{})
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"})
 
 	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -42,7 +43,7 @@ func TestPaymentTransitions(t *testing.T) {
 
 func TestInvalidPaymentTransition(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository, noopPublisher{})
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"})
 
 	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -60,7 +61,7 @@ func TestInvalidPaymentTransition(t *testing.T) {
 
 func TestAuthorizeRejectsInvalidPaymentInput(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository, noopPublisher{})
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"})
 
 	_, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -84,7 +85,7 @@ func TestAuthorizeRejectsInvalidPaymentInput(t *testing.T) {
 
 func TestCompletedRideCapturesAuthorizedPayment(t *testing.T) {
 	repository := newFakeRepository()
-	service := NewService(repository, noopPublisher{})
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"})
 
 	authorized, err := service.Authorize(context.Background(), AuthorizeRequest{
 		RideID:  "ride-1",
@@ -109,6 +110,34 @@ func TestCompletedRideCapturesAuthorizedPayment(t *testing.T) {
 	}
 	if captured.Status != StatusCaptured {
 		t.Fatalf("expected captured, got %s", captured.Status)
+	}
+}
+
+func TestAuthorizeRejectsPaymentForDifferentRider(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "other-rider", status: "requested"})
+
+	_, err := service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:  "ride-1",
+		RiderID: "rider-1",
+		Amount:  100,
+	})
+	if err != ErrRideRiderMismatch {
+		t.Fatalf("expected rider mismatch, got %v", err)
+	}
+}
+
+func TestAuthorizeRejectsCompletedRide(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "completed"})
+
+	_, err := service.Authorize(context.Background(), AuthorizeRequest{
+		RideID:  "ride-1",
+		RiderID: "rider-1",
+		Amount:  100,
+	})
+	if err != ErrRidePaymentNotAllowed {
+		t.Fatalf("expected ride not payable, got %v", err)
 	}
 }
 
@@ -172,4 +201,17 @@ type noopPublisher struct{}
 
 func (noopPublisher) Publish(ctx context.Context, event events.Event) error {
 	return nil
+}
+
+type fakeRideClient struct {
+	riderID string
+	status  string
+}
+
+func (c fakeRideClient) GetRide(ctx context.Context, id string) (rideclient.Ride, error) {
+	return rideclient.Ride{
+		ID:      id,
+		RiderID: c.riderID,
+		Status:  c.status,
+	}, nil
 }

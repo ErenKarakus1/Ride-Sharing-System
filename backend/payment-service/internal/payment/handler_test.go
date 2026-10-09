@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/rideclient"
 	"github.com/gin-gonic/gin"
 )
 
 func TestAuthorizeRequiresRiderRole(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := NewHandler(NewService(newFakeRepository(), noopPublisher{}))
+	handler := NewHandler(NewService(newFakeRepository(), noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"}))
 
 	router := gin.New()
 	router.POST("/payments/authorize", handler.Authorize)
@@ -32,7 +33,7 @@ func TestAuthorizeRequiresRiderRole(t *testing.T) {
 
 func TestAuthorizeUsesAuthenticatedRider(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := NewHandler(NewService(newFakeRepository(), noopPublisher{}))
+	handler := NewHandler(NewService(newFakeRepository(), noopPublisher{}, fakeRideClient{riderID: "rider-1", status: "requested"}))
 
 	router := gin.New()
 	router.POST("/payments/authorize", handler.Authorize)
@@ -58,3 +59,4 @@ func TestAuthorizeUsesAuthenticatedRider(t *testing.T) {
 }
 
 var _ events.Publisher = noopPublisher{}
+var _ rideclient.Client = fakeRideClient{}
