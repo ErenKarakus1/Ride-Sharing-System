@@ -77,6 +77,7 @@ function formatIncomingMessage(message: string) {
     };
 
     const shortRideID = event.payload?.ride_id ? event.payload.ride_id.slice(0, 8) : undefined;
+    if (event.type === "ride.requested") return shortRideID ? `Ride ${shortRideID} requested` : "Ride requested";
     if (event.type === "ride.accepted") return shortRideID ? `Ride ${shortRideID} accepted` : "Ride accepted";
     if (event.type === "ride.started") return shortRideID ? `Ride ${shortRideID} started` : "Ride started";
     if (event.type === "ride.completed") return shortRideID ? `Ride ${shortRideID} completed` : "Ride completed";

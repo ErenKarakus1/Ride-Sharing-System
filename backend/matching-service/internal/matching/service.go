@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/events"
@@ -14,12 +15,18 @@ import (
 var ErrNoDriversAvailable = errors.New("no drivers available")
 
 type Service struct {
-	locations locationclient.Client
-	rides     rideclient.Client
+	locations     locationclient.Client
+	rides         rideclient.Client
+	activeMatches map[string]struct{}
+	mu            sync.Mutex
 }
 
 func NewService(locations locationclient.Client, rides rideclient.Client) *Service {
-	return &Service{locations: locations, rides: rides}
+	return &Service{
+		locations:     locations,
+		rides:         rides,
+		activeMatches: make(map[string]struct{}),
+	}
 }
 
 func (s *Service) Match(ctx context.Context, request MatchRequest) (MatchResponse, error) {
@@ -94,22 +101,36 @@ func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEv
 		return nil
 	}
 
-	log.Printf("starting background match for ride_id=%s", ride.ID)
-	match, accepted, err := s.matchWithRetry(ctx, MatchRequest{
+	if !s.startBackgroundMatch(ride.ID) {
+		log.Printf("background match already running for ride_id=%s", ride.ID)
+		return nil
+	}
+
+	request := MatchRequest{
 		RideID:   ride.ID,
 		Pickup:   Location{Latitude: ride.Pickup.Latitude, Longitude: ride.Pickup.Longitude},
 		RadiusKM: 5,
 		Limit:    5,
-	})
+	}
+
+	log.Printf("starting background match for ride_id=%s", ride.ID)
+	go s.runBackgroundMatch(request)
+	return nil
+}
+
+func (s *Service) runBackgroundMatch(request MatchRequest) {
+	defer s.finishBackgroundMatch(request.RideID)
+
+	match, accepted, err := s.matchWithRetry(context.Background(), request)
 	if err != nil {
-		return err
+		log.Printf("background match failed for ride_id=%s: %v", request.RideID, err)
+		return
 	}
 	if match.DriverID == "" {
-		return nil
+		return
 	}
 
 	log.Printf("auto-matched ride_id=%s driver_id=%s status=%s", accepted.ID, match.DriverID, accepted.Status)
-	return nil
 }
 
 func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (MatchResponse, rideclient.Ride, error) {
@@ -141,4 +162,22 @@ func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (Mat
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *Service) startBackgroundMatch(rideID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.activeMatches[rideID]; exists {
+		return false
+	}
+
+	s.activeMatches[rideID] = struct{}{}
+	return true
+}
+
+func (s *Service) finishBackgroundMatch(rideID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.activeMatches, rideID)
 }
