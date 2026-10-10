@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 const driverLocationsKey = "driver_locations"
 const availableDriversKey = "available_drivers"
+const driverAvailabilityTTL = 15 * time.Minute
 
 type RedisRepository struct {
 	client *redis.Client
@@ -39,11 +41,21 @@ func (r *RedisRepository) UpdateDriverLocation(ctx context.Context, location Dri
 }
 
 func (r *RedisRepository) SetDriverAvailable(ctx context.Context, driverID string) error {
-	return r.client.SAdd(ctx, availableDriversKey, strings.TrimSpace(driverID)).Err()
+	driverID = strings.TrimSpace(driverID)
+	pipe := r.client.TxPipeline()
+	pipe.SAdd(ctx, availableDriversKey, driverID)
+	pipe.Set(ctx, driverAvailabilityKey(driverID), "1", driverAvailabilityTTL)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 func (r *RedisRepository) SetDriverUnavailable(ctx context.Context, driverID string) error {
-	return r.client.SRem(ctx, availableDriversKey, strings.TrimSpace(driverID)).Err()
+	driverID = strings.TrimSpace(driverID)
+	pipe := r.client.TxPipeline()
+	pipe.SRem(ctx, availableDriversKey, driverID)
+	pipe.Del(ctx, driverAvailabilityKey(driverID))
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 func (r *RedisRepository) NearbyDrivers(ctx context.Context, latitude float64, longitude float64, radiusKM float64, limit int) ([]DriverLocation, error) {
@@ -64,7 +76,7 @@ func (r *RedisRepository) NearbyDrivers(ctx context.Context, latitude float64, l
 
 	drivers := make([]DriverLocation, 0, len(results))
 	for _, result := range results {
-		available, err := r.client.SIsMember(ctx, availableDriversKey, result.Name).Result()
+		available, err := r.driverAvailable(ctx, result.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -84,4 +96,26 @@ func (r *RedisRepository) NearbyDrivers(ctx context.Context, latitude float64, l
 
 func driverLocationHashKey(driverID string) string {
 	return fmt.Sprintf("driver:%s:location", driverID)
+}
+
+func driverAvailabilityKey(driverID string) string {
+	return fmt.Sprintf("driver:%s:available", driverID)
+}
+
+func (r *RedisRepository) driverAvailable(ctx context.Context, driverID string) (bool, error) {
+	available, err := r.client.SIsMember(ctx, availableDriversKey, driverID).Result()
+	if err != nil || !available {
+		return available, err
+	}
+
+	live, err := r.client.Exists(ctx, driverAvailabilityKey(driverID)).Result()
+	if err != nil {
+		return false, err
+	}
+	if live == 0 {
+		_ = r.client.SRem(ctx, availableDriversKey, driverID).Err()
+		return false, nil
+	}
+
+	return true, nil
 }

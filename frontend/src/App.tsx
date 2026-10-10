@@ -293,7 +293,10 @@ export function App() {
       "Driver matched",
       "rider",
     );
-    if (response) setMatch(response);
+    if (response) {
+      setMatch(response);
+      await refreshRide();
+    }
   }
 
   async function acceptRide() {
