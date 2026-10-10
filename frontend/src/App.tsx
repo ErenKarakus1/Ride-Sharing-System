@@ -347,12 +347,44 @@ export function App() {
   }
 
   async function resetTrip() {
+    await cleanupCurrentTrip();
     await markDriverUnavailable();
     setFare(null);
     setRide(null);
     setMatch(null);
     setPayment(null);
     setActions(initialActionStates);
+  }
+
+  async function cleanupCurrentTrip() {
+    if (ride && ride.status !== "completed" && ride.status !== "cancelled") {
+      await cancelCurrentRide(ride.id);
+    }
+    if (payment?.status === "captured") {
+      await refundCurrentPayment(payment.id);
+    }
+  }
+
+  async function cancelCurrentRide(rideID: string) {
+    try {
+      if (sessions.rider) {
+        await riderApi.post<Ride>(`/api/v1/rides/${rideID}/cancel`, {});
+        return;
+      }
+      if (sessions.driver) {
+        await driverApi.post<Ride>(`/api/v1/rides/${rideID}/cancel`, {});
+      }
+    } catch {
+      // Reset should still clear local test state if the ride was already closed or unavailable.
+    }
+  }
+
+  async function refundCurrentPayment(paymentID: string) {
+    try {
+      await riderApi.post<Payment>(`/api/v1/payments/${paymentID}/refund`, {});
+    } catch {
+      // Captured payments may already have been refunded while testing the flow.
+    }
   }
 
   return (
