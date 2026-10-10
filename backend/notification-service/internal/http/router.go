@@ -23,7 +23,7 @@ func NewRouter(hub *notification.Hub, validator authclient.Validator) *gin.Engin
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	router.GET("/ws/notifications", func(ctx *gin.Context) {
-		accessToken := bearerToken(ctx.GetHeader("Authorization"))
+		accessToken := accessToken(ctx)
 		if accessToken == "" {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing bearer token"})
 			return
@@ -39,6 +39,15 @@ func NewRouter(hub *notification.Hub, validator authclient.Validator) *gin.Engin
 	})
 
 	return router
+}
+
+func accessToken(ctx *gin.Context) string {
+	token := bearerToken(ctx.GetHeader("Authorization"))
+	if token != "" {
+		return token
+	}
+
+	return strings.TrimSpace(ctx.Query("token"))
 }
 
 func bearerToken(header string) string {
