@@ -54,6 +54,13 @@ export function App() {
     window.history.pushState({}, "", pathForPage(nextPage));
   }
 
+  function changeRole(nextRole: Role) {
+    setRole(nextRole);
+    if (page === "rider" || page === "driver") {
+      navigate(nextRole);
+    }
+  }
+
   async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string, sessionRole?: Role) {
     setActions((current) => ({
       ...current,
@@ -153,7 +160,29 @@ export function App() {
       "Payment authorized",
       "rider",
     );
-    if (response) setPayment(response);
+    if (response) {
+      setPayment(response);
+      await refreshRideUntilMatched(ride.id);
+    }
+  }
+
+  async function refreshRideUntilMatched(rideID: string) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await sleep(500);
+      try {
+        const updated = await riderApi.get<Ride>(`/api/v1/rides/${rideID}`);
+        setRide(updated);
+        if (updated.driver_id || updated.status === "accepted" || updated.status === "started" || updated.status === "completed") {
+          setActions((current) => ({
+            ...current,
+            matching: { loading: false, message: "Driver matched", error: "" },
+          }));
+          return;
+        }
+      } catch {
+        return;
+      }
+    }
   }
 
   async function refreshRide() {
@@ -264,7 +293,7 @@ export function App() {
         activeForm={activeForm}
         sessions={sessions}
         authLoading={actions.auth.loading}
-        onRoleChange={setRole}
+        onRoleChange={changeRole}
         onPageChange={navigate}
         onFormChange={setActiveForm}
         onRegister={register}
@@ -351,4 +380,8 @@ function errorMessage(err: unknown) {
   }
   if (err instanceof Error) return err.message;
   return "Unexpected error";
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

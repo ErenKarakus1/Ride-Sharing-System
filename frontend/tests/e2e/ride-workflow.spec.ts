@@ -55,13 +55,13 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
   await page.getByRole("button", { name: "Available" }).click();
   await expect(page.getByText("Driver is available")).toBeVisible();
 
-  await page.getByRole("button", { name: "Rider", exact: true }).click();
+  await page.getByRole("button", { name: /Rider/ }).first().click();
   await page.getByRole("button", { name: "Authorize" }).click();
   await expect(page.getByText("authorized")).toBeVisible();
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByText("accepted").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Driver", exact: true }).click();
+  await page.getByRole("button", { name: /Driver/ }).first().click();
   await page.getByRole("button", { name: "Start" }).click();
   await expect(page.getByText("started").first()).toBeVisible();
   await page.getByRole("button", { name: "Complete" }).click();

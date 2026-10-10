@@ -50,6 +50,7 @@ export function DriverPanel({
   const canStart = isDriver && ride?.status === "accepted";
   const canComplete = isDriver && ride?.status === "started";
   const showMatchData = Boolean(match || payment);
+  const matchedDriver = match?.driver_id ?? ride?.driver_id ?? "-";
 
   return (
     <section className="panel">
@@ -99,7 +100,7 @@ export function DriverPanel({
       {showMatchData && (
         <DataStrip
           items={[
-            ["Matched driver", match?.driver_id ?? "-"],
+            ["Matched driver", matchedDriver],
             ["Latitude", match ? match.latitude.toFixed(5) : "-"],
             ["Longitude", match ? match.longitude.toFixed(5) : "-"],
             ["Payment ID", payment?.id ?? "-"],
@@ -119,7 +120,7 @@ export function DriverPanel({
       {isDriver && driverAvailable && !ride && (
         <EmptyState icon={Navigation} title="Waiting for a ride" detail="Update driver location, mark the driver available, then match an active ride." />
       )}
-      {isDriver && driverAvailable && ride && !match && (
+      {isDriver && driverAvailable && ride && !ride.driver_id && !match && (
         <EmptyState icon={Navigation} title="Finding driver" detail="Matching runs in the background after payment authorization." />
       )}
     </section>

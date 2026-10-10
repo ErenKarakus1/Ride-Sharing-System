@@ -40,6 +40,7 @@ export function RiderPanel({
   onAuthorizePayment,
   onRefreshRide,
 }: RiderPanelProps) {
+  const driverMatched = Boolean(match || ride?.driver_id || ride?.status === "accepted" || ride?.status === "started" || ride?.status === "completed");
   const canEstimate = isRider && !fare;
   const canRequestRide = isRider && Boolean(fare) && !ride;
   const canAuthorizePayment = isRider && Boolean(ride) && !payment;
@@ -63,8 +64,8 @@ export function RiderPanel({
           { label: "Estimate fare", done: Boolean(fare), active: isRider && !fare },
           { label: "Request ride", done: Boolean(ride), active: Boolean(fare && !ride) },
           { label: "Authorize payment", done: Boolean(payment), active: Boolean(ride && !payment) },
-          { label: "Match driver", done: Boolean(match), active: Boolean(ride && !match) },
-          { label: "Complete trip", done: ride?.status === "completed", active: Boolean(match && ride?.status !== "completed") },
+          { label: "Match driver", done: driverMatched, active: Boolean(payment && !driverMatched) },
+          { label: "Complete trip", done: ride?.status === "completed", active: Boolean(driverMatched && ride?.status !== "completed") },
         ]}
       />
 

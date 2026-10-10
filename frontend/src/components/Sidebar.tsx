@@ -36,6 +36,20 @@ export function Sidebar({
   onResetTrip,
 }: SidebarProps) {
   const session = sessions[role];
+  const navItems: Array<[Page, string]> =
+    role === "rider"
+      ? [
+          ["auth", "Auth"],
+          ["rider", "Rider"],
+          ["ride", "Ride"],
+          ["notifications", "Notifications"],
+        ]
+      : [
+          ["auth", "Auth"],
+          ["driver", "Driver"],
+          ["ride", "Ride"],
+          ["notifications", "Notifications"],
+        ];
 
   return (
     <aside className="sidebar">
@@ -59,13 +73,7 @@ export function Sidebar({
       </div>
 
       <nav className="app-nav" aria-label="Primary navigation">
-        {([
-          ["auth", "Auth"],
-          ["rider", "Rider"],
-          ["driver", "Driver"],
-          ["ride", "Ride"],
-          ["notifications", "Notifications"],
-        ] as Array<[Page, string]>).map(([id, label]) => (
+        {navItems.map(([id, label]) => (
           <button key={id} className={page === id ? "active" : ""} onClick={() => onPageChange(id)}>
             {label}
           </button>
