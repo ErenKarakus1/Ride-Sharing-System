@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"net"
 	"strings"
 	"time"
 
@@ -23,9 +25,14 @@ type KafkaConsumer struct {
 }
 
 func NewKafkaConsumer(brokers string, groupID string, handler PaymentEventHandler) *KafkaConsumer {
+	brokerList := splitBrokers(brokers)
+	if err := ensureTopic(context.Background(), brokerList, PaymentEventsTopic); err != nil {
+		log.Printf("failed to ensure kafka topic %s: %v", PaymentEventsTopic, err)
+	}
+
 	return &KafkaConsumer{
 		reader: kafka.NewReader(kafka.ReaderConfig{
-			Brokers:                splitBrokers(brokers),
+			Brokers:                brokerList,
 			Topic:                  PaymentEventsTopic,
 			GroupID:                groupID,
 			WatchPartitionChanges:  true,
@@ -104,4 +111,33 @@ func splitBrokers(brokers string) []string {
 	}
 
 	return cleaned
+}
+
+func ensureTopic(ctx context.Context, brokers []string, topic string) error {
+	if len(brokers) == 0 {
+		return nil
+	}
+
+	conn, err := kafka.DialContext(ctx, "tcp", brokers[0])
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	controller, err := conn.Controller()
+	if err != nil {
+		return err
+	}
+
+	controllerConn, err := kafka.DialContext(ctx, "tcp", net.JoinHostPort(controller.Host, fmt.Sprint(controller.Port)))
+	if err != nil {
+		return err
+	}
+	defer controllerConn.Close()
+
+	return controllerConn.CreateTopics(kafka.TopicConfig{
+		Topic:             topic,
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+	})
 }
