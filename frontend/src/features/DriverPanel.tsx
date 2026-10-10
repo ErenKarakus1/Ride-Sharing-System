@@ -46,7 +46,6 @@ export function DriverPanel({
   const driverAvailable = locationAction.message === "Driver is available";
   const canUpdateLocation = isDriver && !locationUpdated;
   const canSetAvailable = isDriver && locationUpdated && !driverAvailable;
-  const canMatch = isDriver && driverAvailable && Boolean(ride) && !match;
   const canAccept = isDriver && Boolean(match) && ride?.status === "requested";
   const canStart = isDriver && ride?.status === "accepted";
   const canComplete = isDriver && ride?.status === "started";
@@ -70,7 +69,7 @@ export function DriverPanel({
         steps={[
           { label: "Update location", done: Boolean(locationAction.message), active: isDriver && !locationAction.message },
           { label: "Go available", done: locationAction.message === "Driver is available", active: Boolean(locationAction.message) },
-          { label: "Match ride", done: Boolean(match), active: Boolean(ride && !match) },
+          { label: "Match ride", done: Boolean(match || ride?.driver_id), active: Boolean(ride && !match && !ride.driver_id) },
           { label: "Accept", done: ride?.status === "accepted" || ride?.status === "started" || ride?.status === "completed", active: Boolean(match && ride?.status === "requested") },
           { label: "Start", done: ride?.status === "started" || ride?.status === "completed", active: ride?.status === "accepted" },
           { label: "Complete", done: ride?.status === "completed", active: ride?.status === "started" },
@@ -84,9 +83,6 @@ export function DriverPanel({
           )}
           {canSetAvailable && (
             <IconButton icon={Radio} label="Available" loading={locationAction.loading} loadingLabel="Saving..." onClick={onSetDriverAvailable} />
-          )}
-          {canMatch && (
-            <IconButton icon={Navigation} label="Match" loading={matchingAction.loading} loadingLabel="Matching..." onClick={onFindDriver} />
           )}
           {canAccept && (
             <IconButton icon={CheckCircle2} label="Accept" loading={lifecycleAction.loading} loadingLabel="Accepting..." onClick={onAcceptRide} />
@@ -124,7 +120,7 @@ export function DriverPanel({
         <EmptyState icon={Navigation} title="Waiting for a ride" detail="Update driver location, mark the driver available, then match an active ride." />
       )}
       {isDriver && driverAvailable && ride && !match && (
-        <EmptyState icon={Navigation} title="Ready to match" detail="Find the nearest available driver for the current ride." />
+        <EmptyState icon={Navigation} title="Finding driver" detail="Matching runs in the background after payment authorization." />
       )}
     </section>
   );

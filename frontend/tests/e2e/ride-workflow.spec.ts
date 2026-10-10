@@ -44,9 +44,6 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
   await page.getByRole("button", { name: "Request ride" }).click();
   await expect(page.getByText("Ride requested").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Authorize" }).click();
-  await expect(page.getByText("authorized")).toBeVisible();
-
   await page.getByRole("button", { name: "Driver" }).first().click();
   await page.getByRole("button", { name: "Auth", exact: true }).click();
   await page.getByRole("button", { name: "Driver off" }).click();
@@ -58,11 +55,13 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
   await page.getByRole("button", { name: "Available" }).click();
   await expect(page.getByText("Driver is available")).toBeVisible();
 
-  await page.getByRole("button", { name: "Match" }).click();
-  await expect(page.getByText("driver-1")).toBeVisible();
-
-  await page.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("button", { name: "Rider", exact: true }).click();
+  await page.getByRole("button", { name: "Authorize" }).click();
+  await expect(page.getByText("authorized")).toBeVisible();
+  await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByText("accepted").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Driver", exact: true }).click();
   await page.getByRole("button", { name: "Start" }).click();
   await expect(page.getByText("started").first()).toBeVisible();
   await page.getByRole("button", { name: "Complete" }).click();
@@ -74,6 +73,8 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
 });
 
 async function mockApi(page: Page) {
+  let currentRide = ride;
+
   await page.route("**/api/v1/auth/register", async (route) => {
     const body = route.request().postDataJSON() as { role: "rider" | "driver" };
     await route.fulfill({ json: body.role === "driver" ? driverSession : riderSession });
@@ -86,10 +87,12 @@ async function mockApi(page: Page) {
   });
 
   await page.route("**/api/v1/rides", async (route) => {
-    await route.fulfill({ json: ride });
+    currentRide = ride;
+    await route.fulfill({ json: currentRide });
   });
 
   await page.route("**/api/v1/payments/authorize", async (route) => {
+    currentRide = { ...ride, driver_id: "driver-1", status: "accepted" };
     await route.fulfill({
       json: {
         id: "payment-1",
@@ -110,22 +113,18 @@ async function mockApi(page: Page) {
     await route.fulfill({ status: 204 });
   });
 
-  await page.route("**/api/v1/matches", async (route) => {
-    await route.fulfill({
-      json: { ride_id: "ride-1", driver_id: "driver-1", latitude: 41.0369, longitude: 28.985 },
-    });
-  });
-
-  await page.route("**/api/v1/rides/ride-1/accept", async (route) => {
-    await route.fulfill({ json: { ...ride, driver_id: "driver-1", status: "accepted" } });
+  await page.route("**/api/v1/rides/ride-1", async (route) => {
+    await route.fulfill({ json: currentRide });
   });
 
   await page.route("**/api/v1/rides/ride-1/start", async (route) => {
-    await route.fulfill({ json: { ...ride, driver_id: "driver-1", status: "started" } });
+    currentRide = { ...ride, driver_id: "driver-1", status: "started" };
+    await route.fulfill({ json: currentRide });
   });
 
   await page.route("**/api/v1/rides/ride-1/complete", async (route) => {
-    await route.fulfill({ json: { ...ride, driver_id: "driver-1", status: "completed" } });
+    currentRide = { ...ride, driver_id: "driver-1", status: "completed" };
+    await route.fulfill({ json: currentRide });
   });
 
   await page.route("**/api/v1/payments/payment-1", async (route) => {

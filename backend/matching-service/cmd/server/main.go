@@ -9,17 +9,22 @@ import (
 	"time"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/config"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/events"
 	httpapi "github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/http"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/locationclient"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/matching"
+	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/rideclient"
 )
 
 func main() {
 	cfg := config.Load()
 	locationClient := locationclient.NewHTTPClient(cfg.LocationServiceURL)
-	service := matching.NewService(locationClient)
+	rideClient := rideclient.NewHTTPClient(cfg.RideServiceURL, cfg.InternalToken)
+	service := matching.NewService(locationClient, rideClient)
 	handler := matching.NewHandler(service)
 	router := httpapi.NewRouter(handler)
+	consumer := events.NewKafkaConsumer(cfg.KafkaBrokers, cfg.ConsumerGroup, service)
+	defer consumer.Close()
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -30,10 +35,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	log.Printf("starting matching-service on port %s", cfg.Port)
 	go func() {
 		errCh <- server.ListenAndServe()
+	}()
+
+	log.Printf("starting matching-service payment event consumer")
+	go func() {
+		errCh <- consumer.Run(ctx)
 	}()
 
 	select {

@@ -29,8 +29,9 @@ type fareEstimate struct {
 }
 
 type rideResponse struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	ID       string `json:"id"`
+	DriverID string `json:"driver_id"`
+	Status   string `json:"status"`
 }
 
 type paymentResponse struct {
@@ -98,13 +99,6 @@ func main() {
 	})
 	must("create ride", err)
 
-	payment, err := post[paymentResponse](client, baseURL+"/api/v1/payments/authorize", login.AccessToken, map[string]any{
-		"ride_id":  ride.ID,
-		"amount":   fare.Amount,
-		"currency": fare.Currency,
-	})
-	must("authorize payment", err)
-
 	notifications, closeNotifications, err := watchNotifications(baseURL, login.AccessToken)
 	must("connect rider notifications websocket", err)
 	defer closeNotifications()
@@ -115,14 +109,15 @@ func main() {
 	}))
 	must("set driver available", postNoContent(client, fmt.Sprintf("%s/api/v1/drivers/%s/available", baseURL, driverRegister.UserID), driverLogin.AccessToken, nil))
 
-	match, err := post[map[string]any](client, baseURL+"/api/v1/matches", login.AccessToken, map[string]any{
-		"ride_id": ride.ID,
-		"pickup":  pickup,
+	payment, err := post[paymentResponse](client, baseURL+"/api/v1/payments/authorize", login.AccessToken, map[string]any{
+		"ride_id":  ride.ID,
+		"amount":   fare.Amount,
+		"currency": fare.Currency,
 	})
-	must("match ride", err)
+	must("authorize payment", err)
 
-	accepted, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/accept", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
-	must("accept ride", err)
+	accepted, err := waitForRideStatus(client, fmt.Sprintf("%s/api/v1/rides/%s", baseURL, ride.ID), login.AccessToken, "accepted")
+	must("wait for auto-accepted ride", err)
 
 	started, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/start", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
 	must("start ride", err)
@@ -138,7 +133,7 @@ func main() {
 	fmt.Printf("E2E passed: rider=%s driver=%s matched_driver=%v ride=%s statuses=%s/%s/%s/%s fare=%.2f %s payment=%s payment_status=%s/%s\n",
 		register.UserID,
 		driverRegister.UserID,
-		match["driver_id"],
+		accepted.DriverID,
 		ride.ID,
 		ride.Status,
 		accepted.Status,
@@ -150,6 +145,30 @@ func main() {
 		payment.Status,
 		captured.Status,
 	)
+}
+
+func waitForRideStatus(client *http.Client, url string, accessToken string, status string) (rideResponse, error) {
+	var ride rideResponse
+	var err error
+	deadline := time.After(60 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		ride, err = get[rideResponse](client, url, accessToken)
+		if err != nil {
+			return rideResponse{}, err
+		}
+		if ride.Status == status {
+			return ride, nil
+		}
+
+		select {
+		case <-deadline:
+			return ride, fmt.Errorf("ride status remained %q, expected %q after 60s", ride.Status, status)
+		case <-ticker.C:
+		}
+	}
 }
 
 func watchNotifications(baseURL string, accessToken string) (<-chan notificationMessage, func(), error) {

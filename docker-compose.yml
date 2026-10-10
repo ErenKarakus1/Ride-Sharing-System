@@ -143,8 +143,15 @@ services:
     environment:
       PORT: 8084
       LOCATION_SERVICE_HTTP_URL: http://location-service:8083
+      RIDE_SERVICE_HTTP_URL: http://ride-service:8082
+      KAFKA_BROKERS: kafka:9092
+      INTERNAL_SERVICE_TOKEN: local-internal-service-token
     depends_on:
       location-service:
+        condition: service_healthy
+      ride-service:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
