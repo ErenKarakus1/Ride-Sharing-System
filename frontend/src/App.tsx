@@ -277,12 +277,14 @@ export function App() {
 
   async function markDriverUnavailable() {
     const driverID = sessions.driver?.user_id;
-    if (!driverID) return;
+    if (!driverID) return "";
 
     try {
       await driverApi.post<void>(`/api/v1/drivers/${driverID}/unavailable`, {});
+      return "";
     } catch {
       // Reset and sign-out should still clear local state even if the driver is already unavailable.
+      return "Driver availability cleanup failed.";
     }
   }
 
@@ -347,43 +349,60 @@ export function App() {
   }
 
   async function resetTrip() {
-    await cleanupCurrentTrip();
-    await markDriverUnavailable();
+    const cleanupErrors = await cleanupCurrentTrip();
+    const driverCleanupError = await markDriverUnavailable();
+    if (driverCleanupError) cleanupErrors.push(driverCleanupError);
     setFare(null);
     setRide(null);
     setMatch(null);
     setPayment(null);
-    setActions(initialActionStates);
+    setActions({
+      ...initialActionStates(),
+      auth: {
+        loading: false,
+        message: cleanupErrors.length === 0 ? "Trip reset complete" : "",
+        error: cleanupErrors.join(" "),
+      },
+    });
   }
 
   async function cleanupCurrentTrip() {
+    const errors: string[] = [];
     if (ride && ride.status !== "completed" && ride.status !== "cancelled") {
-      await cancelCurrentRide(ride.id);
+      const error = await cancelCurrentRide(ride.id);
+      if (error) errors.push(error);
     }
     if (payment?.status === "captured") {
-      await refundCurrentPayment(payment.id);
+      const error = await refundCurrentPayment(payment.id);
+      if (error) errors.push(error);
     }
+    return errors;
   }
 
   async function cancelCurrentRide(rideID: string) {
     try {
       if (sessions.rider) {
         await riderApi.post<Ride>(`/api/v1/rides/${rideID}/cancel`, {});
-        return;
+        return "";
       }
       if (sessions.driver) {
         await driverApi.post<Ride>(`/api/v1/rides/${rideID}/cancel`, {});
+        return "";
       }
     } catch {
       // Reset should still clear local test state if the ride was already closed or unavailable.
+      return "Ride cleanup failed.";
     }
+    return "";
   }
 
   async function refundCurrentPayment(paymentID: string) {
     try {
       await riderApi.post<Payment>(`/api/v1/payments/${paymentID}/refund`, {});
+      return "";
     } catch {
       // Captured payments may already have been refunded while testing the flow.
+      return "Payment refund cleanup failed.";
     }
   }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -118,6 +119,56 @@ func main() {
 
 	accepted, err := waitForRideStatus(client, fmt.Sprintf("%s/api/v1/rides/%s", baseURL, ride.ID), login.AccessToken, "accepted")
 	must("wait for auto-accepted ride", err)
+	if accepted.DriverID != driverRegister.UserID {
+		must("auto-match assigned expected driver", fmt.Errorf("expected driver %s, got %s", driverRegister.UserID, accepted.DriverID))
+	}
+
+	driver2Email := fmt.Sprintf("driver2-%d@example.com", time.Now().UnixNano())
+	driver2, err := post[authResponse](client, baseURL+"/api/v1/auth/register", "", map[string]any{
+		"email":        driver2Email,
+		"password":     "Password12345",
+		"display_name": "E2E Second Driver",
+		"phone_number": "+905550000002",
+		"role":         "driver",
+	})
+	must("register second driver", err)
+	driver2Login, err := post[authResponse](client, baseURL+"/api/v1/auth/login", "", map[string]any{
+		"email":    driver2Email,
+		"password": "Password12345",
+	})
+	must("login second driver", err)
+	must("second driver cannot accept already accepted ride", postExpectStatus(client, fmt.Sprintf("%s/api/v1/rides/%s/accept", baseURL, ride.ID), driver2Login.AccessToken, map[string]any{"driver_id": driver2.UserID}, http.StatusConflict))
+
+	secondRide, err := post[rideResponse](client, baseURL+"/api/v1/rides", login.AccessToken, map[string]any{
+		"pickup":  pickup,
+		"dropoff": dropoff,
+	})
+	must("create second ride", err)
+	secondPayment, err := post[paymentResponse](client, baseURL+"/api/v1/payments/authorize", login.AccessToken, map[string]any{
+		"ride_id":  secondRide.ID,
+		"amount":   fare.Amount,
+		"currency": fare.Currency,
+	})
+	must("authorize second payment", err)
+	_ = secondPayment
+	_, err = waitForRideStatusNot(client, fmt.Sprintf("%s/api/v1/rides/%s", baseURL, secondRide.ID), login.AccessToken, "accepted", 3*time.Second)
+	must("second ride stays unmatched while driver is claimed", err)
+	must("claimed driver cannot match second ride", postExpectStatus(client, baseURL+"/api/v1/matches", login.AccessToken, map[string]any{
+		"ride_id":   secondRide.ID,
+		"pickup":    pickup,
+		"radius_km": 5,
+		"limit":     5,
+	}, http.StatusNotFound))
+
+	must("driver unavailable reset prevents matching", postNoContent(client, fmt.Sprintf("%s/api/v1/drivers/%s/unavailable", baseURL, driverRegister.UserID), driverLogin.AccessToken, nil))
+	must("unavailable driver cannot match", postExpectStatus(client, baseURL+"/api/v1/matches", login.AccessToken, map[string]any{
+		"ride_id":   secondRide.ID,
+		"pickup":    pickup,
+		"radius_km": 5,
+		"limit":     5,
+	}, http.StatusNotFound))
+	_, err = post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/cancel", baseURL, secondRide.ID), login.AccessToken, map[string]any{})
+	must("cancel unmatched second ride", err)
 
 	started, err := post[rideResponse](client, fmt.Sprintf("%s/api/v1/rides/%s/start", baseURL, ride.ID), driverLogin.AccessToken, map[string]any{})
 	must("start ride", err)
@@ -145,6 +196,30 @@ func main() {
 		payment.Status,
 		captured.Status,
 	)
+}
+
+func waitForRideStatusNot(client *http.Client, url string, accessToken string, status string, duration time.Duration) (rideResponse, error) {
+	deadline := time.After(duration)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var ride rideResponse
+	for {
+		var err error
+		ride, err = get[rideResponse](client, url, accessToken)
+		if err != nil {
+			return rideResponse{}, err
+		}
+		if ride.Status == status {
+			return ride, fmt.Errorf("ride unexpectedly became %q", status)
+		}
+
+		select {
+		case <-deadline:
+			return ride, nil
+		case <-ticker.C:
+		}
+	}
 }
 
 func waitForRideStatus(client *http.Client, url string, accessToken string, status string) (rideResponse, error) {
@@ -319,6 +394,33 @@ func waitForPaymentStatus(client *http.Client, url string, accessToken string, s
 
 func postNoContent(client *http.Client, url string, accessToken string, body any) error {
 	return requestNoContent(client, http.MethodPost, url, accessToken, body)
+}
+
+func postExpectStatus(client *http.Client, url string, accessToken string, body any, expectedStatus int) error {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != expectedStatus {
+		body, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("%s returned status %d, expected %d: %s", url, response.StatusCode, expectedStatus, strings.TrimSpace(string(body)))
+	}
+
+	return nil
 }
 
 func putNoContent(client *http.Client, url string, accessToken string, body any) error {

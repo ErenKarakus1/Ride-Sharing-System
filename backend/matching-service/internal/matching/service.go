@@ -10,9 +10,22 @@ import (
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/events"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/locationclient"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/rideclient"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var ErrNoDriversAvailable = errors.New("no drivers available")
+
+var matchingEvents = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "rideshare_matching_events_total",
+		Help: "Total matching attempts and outcomes emitted by matching-service.",
+	},
+	[]string{"outcome"},
+)
+
+func init() {
+	prometheus.MustRegister(matchingEvents)
+}
 
 type Service struct {
 	locations     locationclient.Client
@@ -40,6 +53,8 @@ func (s *Service) MatchAndAssign(ctx context.Context, request MatchRequest) (Mat
 }
 
 func (s *Service) match(ctx context.Context, request MatchRequest, assign bool) (MatchResponse, rideclient.Ride, error) {
+	matchingEvents.WithLabelValues("attempt").Inc()
+
 	limit := request.Limit
 	if limit <= 0 {
 		limit = 5
@@ -57,9 +72,11 @@ func (s *Service) match(ctx context.Context, request MatchRequest, assign bool) 
 		Limit:     limit,
 	})
 	if err != nil {
+		matchingEvents.WithLabelValues("error").Inc()
 		return MatchResponse{}, rideclient.Ride{}, err
 	}
 	if len(drivers) == 0 {
+		matchingEvents.WithLabelValues("no_drivers").Inc()
 		return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
 	}
 
@@ -72,19 +89,23 @@ func (s *Service) match(ctx context.Context, request MatchRequest, assign bool) 
 	}
 
 	if !assign || s.rides == nil {
+		matchingEvents.WithLabelValues("success").Inc()
 		return match, rideclient.Ride{}, nil
 	}
 
 	if err := s.locations.ClaimDriver(ctx, driver.DriverID); err != nil {
+		matchingEvents.WithLabelValues("no_drivers").Inc()
 		return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
 	}
 
 	accepted, err := s.rides.AcceptRide(ctx, request.RideID, driver.DriverID)
 	if err != nil {
 		_ = s.locations.SetDriverAvailable(ctx, driver.DriverID)
+		matchingEvents.WithLabelValues("error").Inc()
 		return MatchResponse{}, rideclient.Ride{}, err
 	}
 
+	matchingEvents.WithLabelValues("success").Inc()
 	return match, accepted, nil
 }
 

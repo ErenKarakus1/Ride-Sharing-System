@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -40,6 +42,11 @@ func main() {
 		fmt.Printf("Checking %s at %s\n", service.name, service.url)
 		if err := waitForHealth(client, service.url, 90*time.Second); err != nil {
 			fmt.Fprintf(os.Stderr, "%s health check failed: %v\n", service.name, err)
+			os.Exit(1)
+		}
+		metricsURL := strings.TrimSuffix(service.url, "/health") + "/metrics"
+		if err := checkMetrics(client, metricsURL); err != nil {
+			fmt.Fprintf(os.Stderr, "%s metrics check failed: %v\n", service.name, err)
 			os.Exit(1)
 		}
 	}
@@ -80,6 +87,29 @@ func checkHealth(client *http.Client, url string) error {
 	}
 	if health.Status != "ok" {
 		return fmt.Errorf("unexpected health status %q", health.Status)
+	}
+
+	return nil
+}
+
+func checkMetrics(client *http.Client, url string) error {
+	response, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d", response.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, 4096))
+	if err != nil {
+		return err
+	}
+	text := string(body)
+	if !strings.Contains(text, "# HELP") || !strings.Contains(text, "# TYPE") {
+		return fmt.Errorf("response does not look like prometheus metrics")
 	}
 
 	return nil

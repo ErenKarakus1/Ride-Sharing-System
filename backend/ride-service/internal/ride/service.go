@@ -7,12 +7,25 @@ import (
 	"strings"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/ride-service/internal/events"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var ErrInvalidTransition = errors.New("invalid ride status transition")
 var ErrMissingRider = errors.New("missing rider")
 var ErrUnauthorizedRideAction = errors.New("unauthorized ride action")
 var ErrInvalidLocation = errors.New("invalid location")
+
+var rideLifecycleEvents = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "rideshare_ride_events_total",
+		Help: "Total ride lifecycle events emitted by ride-service.",
+	},
+	[]string{"status"},
+)
+
+func init() {
+	prometheus.MustRegister(rideLifecycleEvents)
+}
 
 type Service struct {
 	repository Repository
@@ -55,6 +68,7 @@ func (s *Service) Create(ctx context.Context, request CreateRideRequest) (Ride, 
 	if err := s.publishRideEvent(ctx, "ride.requested", created); err != nil {
 		return Ride{}, err
 	}
+	rideLifecycleEvents.WithLabelValues(string(StatusRequested)).Inc()
 
 	return created, nil
 }
@@ -89,7 +103,11 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 		return Ride{}, err
 	}
 
-	return updated, s.publishRideEvent(ctx, "ride.accepted", updated)
+	if err := s.publishRideEvent(ctx, "ride.accepted", updated); err != nil {
+		return Ride{}, err
+	}
+	rideLifecycleEvents.WithLabelValues(string(StatusAccepted)).Inc()
+	return updated, nil
 }
 
 func (s *Service) Start(ctx context.Context, id string, driverID string) (Ride, error) {
@@ -112,7 +130,11 @@ func (s *Service) Start(ctx context.Context, id string, driverID string) (Ride, 
 		return Ride{}, err
 	}
 
-	return updated, s.publishRideEvent(ctx, "ride.started", updated)
+	if err := s.publishRideEvent(ctx, "ride.started", updated); err != nil {
+		return Ride{}, err
+	}
+	rideLifecycleEvents.WithLabelValues(string(StatusStarted)).Inc()
+	return updated, nil
 }
 
 func (s *Service) Complete(ctx context.Context, id string, driverID string) (Ride, error) {
@@ -135,7 +157,11 @@ func (s *Service) Complete(ctx context.Context, id string, driverID string) (Rid
 		return Ride{}, err
 	}
 
-	return updated, s.publishRideEvent(ctx, "ride.completed", updated)
+	if err := s.publishRideEvent(ctx, "ride.completed", updated); err != nil {
+		return Ride{}, err
+	}
+	rideLifecycleEvents.WithLabelValues(string(StatusCompleted)).Inc()
+	return updated, nil
 }
 
 func (s *Service) Cancel(ctx context.Context, id string, actorID string) (Ride, error) {
@@ -158,7 +184,11 @@ func (s *Service) Cancel(ctx context.Context, id string, actorID string) (Ride, 
 		return Ride{}, err
 	}
 
-	return updated, s.publishRideEvent(ctx, "ride.cancelled", updated)
+	if err := s.publishRideEvent(ctx, "ride.cancelled", updated); err != nil {
+		return Ride{}, err
+	}
+	rideLifecycleEvents.WithLabelValues(string(StatusCancelled)).Inc()
+	return updated, nil
 }
 
 func (s *Service) publishRideEvent(ctx context.Context, eventType string, ride Ride) error {

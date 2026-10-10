@@ -8,6 +8,7 @@ import (
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/events"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/payment-service/internal/rideclient"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var ErrInvalidPaymentTransition = errors.New("invalid payment status transition")
@@ -15,6 +16,18 @@ var ErrInvalidPaymentAmount = errors.New("invalid payment amount")
 var ErrInvalidCurrency = errors.New("invalid currency")
 var ErrRidePaymentNotAllowed = errors.New("ride is not payable")
 var ErrRideRiderMismatch = errors.New("payment rider does not match ride rider")
+
+var paymentLifecycleEvents = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "rideshare_payment_events_total",
+		Help: "Total payment lifecycle events emitted by payment-service.",
+	},
+	[]string{"status"},
+)
+
+func init() {
+	prometheus.MustRegister(paymentLifecycleEvents)
+}
 
 type Service struct {
 	repository Repository
@@ -175,9 +188,14 @@ func (s *Service) publishPaymentEvent(ctx context.Context, eventType string, pay
 		return nil
 	}
 
-	return s.publisher.Publish(ctx, events.Event{
+	if err := s.publisher.Publish(ctx, events.Event{
 		Type: eventType,
 		Key:  payment.ID,
 		Data: payment,
-	})
+	}); err != nil {
+		return err
+	}
+
+	paymentLifecycleEvents.WithLabelValues(string(payment.Status)).Inc()
+	return nil
 }
