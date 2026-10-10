@@ -101,19 +101,27 @@ func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEv
 	if err != nil {
 		return err
 	}
+	if match.DriverID == "" {
+		return nil
+	}
 
 	log.Printf("auto-matched ride_id=%s driver_id=%s status=%s", accepted.ID, match.DriverID, accepted.Status)
 	return nil
 }
 
 func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (MatchResponse, rideclient.Ride, error) {
-	deadline := time.NewTimer(30 * time.Second)
-	defer deadline.Stop()
-
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
+		ride, err := s.rides.GetRide(ctx, request.RideID)
+		if err != nil {
+			return MatchResponse{}, rideclient.Ride{}, err
+		}
+		if ride.Status != "requested" || ride.DriverID != nil {
+			return MatchResponse{}, ride, nil
+		}
+
 		match, accepted, err := s.match(ctx, request, true)
 		if err == nil {
 			return match, accepted, nil
@@ -126,8 +134,6 @@ func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (Mat
 		select {
 		case <-ctx.Done():
 			return MatchResponse{}, rideclient.Ride{}, nil
-		case <-deadline.C:
-			return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
 		case <-ticker.C:
 		}
 	}

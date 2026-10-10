@@ -116,8 +116,9 @@ export function App() {
       }));
       return result;
     } catch (err) {
-      const message = errorMessage(err);
-      if (sessionRole && err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      const expiredSession = sessionRole && err instanceof ApiError && err.status === 401;
+      const message = expiredSession ? "Session expired. Sign in again." : errorMessage(err);
+      if (expiredSession) {
         setSessions((current) => ({ ...current, [sessionRole]: null }));
       }
 
@@ -428,9 +429,6 @@ export function App() {
 }
 
 function errorMessage(err: unknown) {
-  if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-    return "Session expired. Sign in again.";
-  }
   if (err instanceof Error) return err.message;
   return "Unexpected error";
 }
