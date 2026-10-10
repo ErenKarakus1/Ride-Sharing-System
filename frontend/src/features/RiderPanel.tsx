@@ -74,7 +74,7 @@ export function RiderPanel({
           ["Fare", fare ? `${fare.amount.toFixed(2)} ${fare.currency}` : "-"],
           ["Distance", fare ? `${fare.distance_km.toFixed(2)} km` : "-"],
           ["Ride", ride?.id ?? "-"],
-          ["Driver", ride?.driver_id || match?.driver_id || "-"],
+          ["Payment", payment?.status ?? "-"],
         ]}
       />
 
