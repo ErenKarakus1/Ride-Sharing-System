@@ -49,6 +49,33 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  useEffect(() => {
+    if (!ride || ride.driver_id || payment?.status !== "authorized") return;
+
+    let stopped = false;
+    const intervalID = window.setInterval(async () => {
+      try {
+        const updated = await riderApi.get<Ride>(`/api/v1/rides/${ride.id}`);
+        if (stopped) return;
+        setRide(updated);
+        if (isRideMatched(updated)) {
+          setActions((current) => ({
+            ...current,
+            matching: { loading: false, message: "Driver matched", error: "" },
+          }));
+          window.clearInterval(intervalID);
+        }
+      } catch {
+        window.clearInterval(intervalID);
+      }
+    }, 2000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(intervalID);
+    };
+  }, [payment?.status, ride?.driver_id, ride?.id, riderApi]);
+
   function navigate(nextPage: Page) {
     setPage(nextPage);
     window.history.pushState({}, "", pathForPage(nextPage));
@@ -167,12 +194,17 @@ export function App() {
   }
 
   async function refreshRideUntilMatched(rideID: string) {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    setActions((current) => ({
+      ...current,
+      matching: { loading: true, message: "", error: "" },
+    }));
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
       await sleep(500);
       try {
         const updated = await riderApi.get<Ride>(`/api/v1/rides/${rideID}`);
         setRide(updated);
-        if (updated.driver_id || updated.status === "accepted" || updated.status === "started" || updated.status === "completed") {
+        if (isRideMatched(updated)) {
           setActions((current) => ({
             ...current,
             matching: { loading: false, message: "Driver matched", error: "" },
@@ -183,6 +215,11 @@ export function App() {
         return;
       }
     }
+
+    setActions((current) => ({
+      ...current,
+      matching: { loading: false, message: "Still waiting for driver match", error: "" },
+    }));
   }
 
   async function refreshRide() {
@@ -384,4 +421,8 @@ function errorMessage(err: unknown) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isRideMatched(ride: Ride) {
+  return Boolean(ride.driver_id || ride.status === "accepted" || ride.status === "started" || ride.status === "completed");
 }
