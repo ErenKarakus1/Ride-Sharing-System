@@ -84,6 +84,11 @@ func requestID() gin.HandlerFunc {
 
 func requestTimeout(timeout time.Duration) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if ctx.Request.URL.Path == "/ws/notifications" {
+			ctx.Next()
+			return
+		}
+
 		requestContext, cancel := context.WithTimeout(ctx.Request.Context(), timeout)
 		defer cancel()
 

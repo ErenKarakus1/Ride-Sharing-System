@@ -81,6 +81,7 @@ func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEv
 		return nil
 	}
 	if s.rides == nil {
+		log.Printf("skipping background match for ride_id=%s: ride client is not configured", event.Data.RideID)
 		return nil
 	}
 
@@ -89,9 +90,11 @@ func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEv
 		return err
 	}
 	if ride.Status != "requested" || ride.DriverID != nil {
+		log.Printf("skipping background match for ride_id=%s: status=%s driver_assigned=%t", ride.ID, ride.Status, ride.DriverID != nil)
 		return nil
 	}
 
+	log.Printf("starting background match for ride_id=%s", ride.ID)
 	match, accepted, err := s.matchWithRetry(ctx, MatchRequest{
 		RideID:   ride.ID,
 		Pickup:   Location{Latitude: ride.Pickup.Latitude, Longitude: ride.Pickup.Longitude},
@@ -119,6 +122,7 @@ func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (Mat
 			return MatchResponse{}, rideclient.Ride{}, err
 		}
 		if ride.Status != "requested" || ride.DriverID != nil {
+			log.Printf("stopping background match for ride_id=%s: status=%s driver_assigned=%t", ride.ID, ride.Status, ride.DriverID != nil)
 			return MatchResponse{}, ride, nil
 		}
 

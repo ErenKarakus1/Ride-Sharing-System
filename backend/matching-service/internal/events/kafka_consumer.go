@@ -51,6 +51,7 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 			continue
 		}
 
+		log.Printf("received payment event type=%s ride_id=%s status=%s", event.Type, event.Data.RideID, event.Data.Status)
 		if err := c.handleWithRetry(ctx, event); err != nil {
 			log.Printf("failed to handle payment event after retries type=%s ride_id=%s: %v", event.Type, event.Data.RideID, err)
 			_ = c.reader.CommitMessages(ctx, message)
