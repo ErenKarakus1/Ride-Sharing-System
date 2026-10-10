@@ -25,9 +25,11 @@ type KafkaConsumer struct {
 func NewKafkaConsumer(brokers string, groupID string, handler PaymentEventHandler) *KafkaConsumer {
 	return &KafkaConsumer{
 		reader: kafka.NewReader(kafka.ReaderConfig{
-			Brokers: splitBrokers(brokers),
-			Topic:   PaymentEventsTopic,
-			GroupID: groupID,
+			Brokers:                splitBrokers(brokers),
+			Topic:                  PaymentEventsTopic,
+			GroupID:                groupID,
+			WatchPartitionChanges:  true,
+			PartitionWatchInterval: 5 * time.Second,
 		}),
 		handler: handler,
 	}

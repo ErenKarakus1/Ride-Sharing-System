@@ -117,6 +117,9 @@ export function RiderPanel({
       {isRider && ride && !payment && (
         <EmptyState icon={CheckCircle2} title="Ride requested" detail="Authorize payment before handing the trip to the driver flow." />
       )}
+      {isRider && payment && !driverMatched && matchingAction.error && (
+        <EmptyState icon={Radio} title="No available drivers" detail={matchingAction.error} />
+      )}
     </section>
   );
 }
