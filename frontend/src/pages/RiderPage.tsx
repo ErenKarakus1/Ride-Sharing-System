@@ -8,6 +8,7 @@ import type { ActionState, FareEstimate, Location, Match, Payment, Ride } from "
 type RiderPageProps = {
   isRider: boolean;
   action: ActionState;
+  matchingAction: ActionState;
   pickup: Location;
   dropoff: Location;
   fare: FareEstimate | null;
@@ -19,6 +20,7 @@ type RiderPageProps = {
   onEstimateFare: () => void;
   onCreateRide: () => void;
   onAuthorizePayment: () => void;
+  onFindDriver: () => void;
   onRefreshRide: () => void;
 };
 

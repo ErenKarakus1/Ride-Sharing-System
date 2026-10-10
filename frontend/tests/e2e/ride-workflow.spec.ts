@@ -45,7 +45,6 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
   await expect(page.getByText("Ride requested").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Driver" }).first().click();
-  await page.getByRole("button", { name: "Auth", exact: true }).click();
   await page.getByRole("button", { name: "Driver off" }).click();
   await page.getByRole("button", { name: "Register" }).click();
   await expect(page).toHaveURL(/\/driver$/);

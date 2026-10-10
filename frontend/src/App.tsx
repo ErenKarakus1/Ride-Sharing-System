@@ -50,6 +50,17 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const session = sessions[role];
+    if (!session && page !== "auth") {
+      navigate("auth");
+      return;
+    }
+    if (session && page === "auth") {
+      navigate(role);
+    }
+  }, [page, role, sessions]);
+
+  useEffect(() => {
     if (!ride || ride.driver_id || payment?.status !== "authorized") return;
 
     let stopped = false;
@@ -83,9 +94,12 @@ export function App() {
 
   function changeRole(nextRole: Role) {
     setRole(nextRole);
-    if (page === "rider" || page === "driver") {
-      navigate(nextRole);
-    }
+    navigate(sessions[nextRole] ? nextRole : "auth");
+  }
+
+  function signOut() {
+    setSessions((current) => ({ ...current, [role]: null }));
+    navigate("auth");
   }
 
   async function run<T>(key: ActionKey, action: () => Promise<T>, successMessage: string, sessionRole?: Role) {
@@ -335,7 +349,7 @@ export function App() {
         onFormChange={setActiveForm}
         onRegister={register}
         onLogin={login}
-        onSignOut={() => setSessions((current) => ({ ...current, [role]: null }))}
+        onSignOut={signOut}
         onResetTrip={resetTrip}
       />
 
@@ -364,6 +378,7 @@ export function App() {
           <RiderPage
             isRider={isRider}
             action={actions.ride.error || actions.ride.message || actions.ride.loading ? actions.ride : actions.fare}
+            matchingAction={actions.matching}
             pickup={pickup}
             dropoff={dropoff}
             fare={fare}
@@ -375,6 +390,7 @@ export function App() {
             onEstimateFare={estimateFare}
             onCreateRide={createRide}
             onAuthorizePayment={authorizePayment}
+            onFindDriver={findDriver}
             onRefreshRide={refreshRide}
           />
         )}

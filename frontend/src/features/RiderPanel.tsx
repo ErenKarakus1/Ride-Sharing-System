@@ -1,4 +1,4 @@
-import { Car, CheckCircle2, CircleDollarSign, RefreshCcw } from "lucide-react";
+import { Car, CheckCircle2, CircleDollarSign, Radio, RefreshCcw } from "lucide-react";
 import { CoordinateEditor } from "../components/CoordinateEditor";
 import { DataStrip } from "../components/DataStrip";
 import { EmptyState } from "../components/EmptyState";
@@ -10,6 +10,7 @@ import type { ActionState, FareEstimate, Location, Match, Payment, Ride } from "
 type RiderPanelProps = {
   isRider: boolean;
   action: ActionState;
+  matchingAction: ActionState;
   pickup: Location;
   dropoff: Location;
   fare: FareEstimate | null;
@@ -21,12 +22,14 @@ type RiderPanelProps = {
   onEstimateFare: () => void;
   onCreateRide: () => void;
   onAuthorizePayment: () => void;
+  onFindDriver: () => void;
   onRefreshRide: () => void;
 };
 
 export function RiderPanel({
   isRider,
   action,
+  matchingAction,
   pickup,
   dropoff,
   fare,
@@ -38,12 +41,14 @@ export function RiderPanel({
   onEstimateFare,
   onCreateRide,
   onAuthorizePayment,
+  onFindDriver,
   onRefreshRide,
 }: RiderPanelProps) {
   const driverMatched = Boolean(match || ride?.driver_id || ride?.status === "accepted" || ride?.status === "started" || ride?.status === "completed");
   const canEstimate = isRider && !fare;
   const canRequestRide = isRider && Boolean(fare) && !ride;
   const canAuthorizePayment = isRider && Boolean(ride) && !payment;
+  const canFindDriver = isRider && Boolean(payment) && !driverMatched;
   const canRefreshRide = Boolean(ride) && ride?.status !== "completed";
   const showTripData = Boolean(fare || ride || payment);
 
@@ -51,7 +56,7 @@ export function RiderPanel({
     <section className="panel">
       <div className="panel-title">
         <h2>Rider flow</h2>
-        <span>{action.loading ? "working" : action.error || action.message || (isRider ? "active" : "needs rider token")}</span>
+        <span>{panelStatus(isRider, action, matchingAction)}</span>
       </div>
 
       <div className="coordinate-grid">
@@ -79,6 +84,9 @@ export function RiderPanel({
           )}
           {canAuthorizePayment && (
             <IconButton icon={CheckCircle2} label="Authorize" loading={action.loading} loadingLabel="Authorizing..." onClick={onAuthorizePayment} />
+          )}
+          {canFindDriver && (
+            <IconButton icon={Radio} label="Match" loading={matchingAction.loading} loadingLabel="Matching..." onClick={onFindDriver} />
           )}
           {canRefreshRide && (
             <IconButton icon={RefreshCcw} label="Refresh" loading={action.loading} loadingLabel="Refreshing..." onClick={onRefreshRide} variant="secondary" />
@@ -111,4 +119,12 @@ export function RiderPanel({
       )}
     </section>
   );
+}
+
+function panelStatus(isRider: boolean, ...actions: ActionState[]) {
+  const active = actions.find((item) => item.loading || item.error || item.message);
+  if (active?.loading) return "working";
+  if (active?.error) return active.error;
+  if (active?.message) return active.message;
+  return isRider ? "active" : "needs rider token";
 }

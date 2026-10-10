@@ -36,16 +36,15 @@ export function Sidebar({
   onResetTrip,
 }: SidebarProps) {
   const session = sessions[role];
-  const navItems: Array<[Page, string]> =
-    role === "rider"
+  const navItems: Array<[Page, string]> = !session
+    ? [["auth", "Auth"]]
+    : role === "rider"
       ? [
-          ["auth", "Auth"],
           ["rider", "Rider"],
           ["ride", "Ride"],
           ["notifications", "Notifications"],
         ]
       : [
-          ["auth", "Auth"],
           ["driver", "Driver"],
           ["ride", "Ride"],
           ["notifications", "Notifications"],
