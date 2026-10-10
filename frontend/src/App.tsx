@@ -97,7 +97,10 @@ export function App() {
     navigate(sessions[nextRole] ? nextRole : "auth");
   }
 
-  function signOut() {
+  async function signOut() {
+    if (role === "driver") {
+      await markDriverUnavailable();
+    }
     setSessions((current) => ({ ...current, [role]: null }));
     navigate("auth");
   }
@@ -272,6 +275,17 @@ export function App() {
     );
   }
 
+  async function markDriverUnavailable() {
+    const driverID = sessions.driver?.user_id;
+    if (!driverID) return;
+
+    try {
+      await driverApi.post<void>(`/api/v1/drivers/${driverID}/unavailable`, {});
+    } catch {
+      // Reset and sign-out should still clear local state even if the driver is already unavailable.
+    }
+  }
+
   async function findDriver() {
     if (!ride) {
       setActions((current) => ({
@@ -332,7 +346,8 @@ export function App() {
     if (response) setRide(response);
   }
 
-  function resetTrip() {
+  async function resetTrip() {
+    await markDriverUnavailable();
     setFare(null);
     setRide(null);
     setMatch(null);
