@@ -50,6 +50,10 @@ func (h *Handler) SetDriverUnavailable(ctx *gin.Context) {
 	h.writeEmptyResult(ctx, h.service.SetDriverUnavailable(ctx.Request.Context(), driverID(ctx)))
 }
 
+func (h *Handler) ClaimDriver(ctx *gin.Context) {
+	h.writeEmptyResult(ctx, h.service.ClaimDriver(ctx.Request.Context(), driverID(ctx)))
+}
+
 func (h *Handler) NearbyDrivers(ctx *gin.Context) {
 	request := NearbyDriversRequest{
 		Latitude:  floatQuery(ctx, "latitude"),
@@ -70,6 +74,10 @@ func (h *Handler) NearbyDrivers(ctx *gin.Context) {
 func (h *Handler) writeEmptyResult(ctx *gin.Context, err error) {
 	if errors.Is(err, ErrMissingDriver) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing driver"})
+		return
+	}
+	if errors.Is(err, ErrDriverUnavailable) {
+		ctx.JSON(http.StatusConflict, gin.H{"error": "driver unavailable"})
 		return
 	}
 	if err != nil {

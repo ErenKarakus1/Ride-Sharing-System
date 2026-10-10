@@ -12,4 +12,5 @@ type Repository interface {
 	Get(ctx context.Context, id string) (Ride, error)
 	ListByRider(ctx context.Context, riderID string) ([]Ride, error)
 	UpdateStatus(ctx context.Context, id string, status Status, driverID *string) (Ride, error)
+	UpdateStatusIfCurrent(ctx context.Context, id string, currentStatus Status, nextStatus Status, driverID *string) (Ride, error)
 }

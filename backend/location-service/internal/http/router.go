@@ -30,6 +30,7 @@ func NewRouter(locationHandler *location.Handler) *gin.Engine {
 			drivers.PUT("/:id/location", locationHandler.UpdateDriverLocation)
 			drivers.POST("/:id/available", locationHandler.SetDriverAvailable)
 			drivers.POST("/:id/unavailable", locationHandler.SetDriverUnavailable)
+			drivers.POST("/:id/claim", locationHandler.ClaimDriver)
 		}
 
 		v1.GET("/drivers/nearby", locationHandler.NearbyDrivers)

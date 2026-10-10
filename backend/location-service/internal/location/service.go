@@ -7,6 +7,7 @@ import (
 )
 
 var ErrMissingDriver = errors.New("missing driver")
+var ErrDriverUnavailable = errors.New("driver unavailable")
 
 type Service struct {
 	repository Repository
@@ -45,6 +46,15 @@ func (s *Service) SetDriverUnavailable(ctx context.Context, driverID string) err
 	}
 
 	return s.repository.SetDriverUnavailable(ctx, driverID)
+}
+
+func (s *Service) ClaimDriver(ctx context.Context, driverID string) error {
+	driverID = strings.TrimSpace(driverID)
+	if driverID == "" {
+		return ErrMissingDriver
+	}
+
+	return s.repository.ClaimDriver(ctx, driverID)
 }
 
 func (s *Service) NearbyDrivers(ctx context.Context, request NearbyDriversRequest) ([]DriverLocation, error) {

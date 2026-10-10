@@ -84,7 +84,7 @@ func (s *Service) Accept(ctx context.Context, id string, driverID string) (Ride,
 		return Ride{}, ErrUnauthorizedRideAction
 	}
 
-	updated, err := s.repository.UpdateStatus(ctx, id, StatusAccepted, &trimmedDriverID)
+	updated, err := s.repository.UpdateStatusIfCurrent(ctx, id, StatusRequested, StatusAccepted, &trimmedDriverID)
 	if err != nil {
 		return Ride{}, err
 	}
@@ -107,7 +107,7 @@ func (s *Service) Start(ctx context.Context, id string, driverID string) (Ride, 
 		return Ride{}, ErrUnauthorizedRideAction
 	}
 
-	updated, err := s.repository.UpdateStatus(ctx, id, StatusStarted, nil)
+	updated, err := s.repository.UpdateStatusIfCurrent(ctx, id, StatusAccepted, StatusStarted, nil)
 	if err != nil {
 		return Ride{}, err
 	}
@@ -130,7 +130,7 @@ func (s *Service) Complete(ctx context.Context, id string, driverID string) (Rid
 		return Ride{}, ErrUnauthorizedRideAction
 	}
 
-	updated, err := s.repository.UpdateStatus(ctx, id, StatusCompleted, nil)
+	updated, err := s.repository.UpdateStatusIfCurrent(ctx, id, StatusStarted, StatusCompleted, nil)
 	if err != nil {
 		return Ride{}, err
 	}
@@ -153,7 +153,7 @@ func (s *Service) Cancel(ctx context.Context, id string, actorID string) (Ride, 
 		return Ride{}, ErrUnauthorizedRideAction
 	}
 
-	updated, err := s.repository.UpdateStatus(ctx, id, StatusCancelled, nil)
+	updated, err := s.repository.UpdateStatusIfCurrent(ctx, id, current.Status, StatusCancelled, nil)
 	if err != nil {
 		return Ride{}, err
 	}

@@ -58,6 +58,34 @@ func (r *RedisRepository) SetDriverUnavailable(ctx context.Context, driverID str
 	return err
 }
 
+func (r *RedisRepository) ClaimDriver(ctx context.Context, driverID string) error {
+	driverID = strings.TrimSpace(driverID)
+	if driverID == "" {
+		return ErrMissingDriver
+	}
+
+	claimed, err := r.client.Eval(ctx, `
+		if redis.call("SISMEMBER", KEYS[1], ARGV[1]) == 0 then
+			return 0
+		end
+		if redis.call("EXISTS", KEYS[2]) == 0 then
+			redis.call("SREM", KEYS[1], ARGV[1])
+			return 0
+		end
+		redis.call("SREM", KEYS[1], ARGV[1])
+		redis.call("DEL", KEYS[2])
+		return 1
+	`, []string{availableDriversKey, driverAvailabilityKey(driverID)}, driverID).Int()
+	if err != nil {
+		return err
+	}
+	if claimed == 0 {
+		return ErrDriverUnavailable
+	}
+
+	return nil
+}
+
 func (r *RedisRepository) NearbyDrivers(ctx context.Context, latitude float64, longitude float64, radiusKM float64, limit int) ([]DriverLocation, error) {
 	results, err := r.client.GeoSearchLocation(ctx, driverLocationsKey, &redis.GeoSearchLocationQuery{
 		GeoSearchQuery: redis.GeoSearchQuery{

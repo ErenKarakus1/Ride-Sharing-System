@@ -114,6 +114,26 @@ func (r *PostgresRepository) UpdateStatus(ctx context.Context, id string, status
 	return ride, nil
 }
 
+func (r *PostgresRepository) UpdateStatusIfCurrent(ctx context.Context, id string, currentStatus Status, nextStatus Status, driverID *string) (Ride, error) {
+	const query = `
+		UPDATE rides
+		SET status = $3, driver_id = COALESCE($4, driver_id), updated_at = now()
+		WHERE id = $1 AND status = $2
+		RETURNING id, rider_id, driver_id, pickup_latitude, pickup_longitude, pickup_address,
+			dropoff_latitude, dropoff_longitude, dropoff_address, status, created_at, updated_at
+	`
+
+	ride, err := scanRide(r.db.QueryRow(ctx, query, strings.TrimSpace(id), currentStatus, nextStatus, driverID))
+	if err == pgx.ErrNoRows {
+		return Ride{}, ErrInvalidTransition
+	}
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return ride, nil
+}
+
 type rideRow interface {
 	Scan(dest ...any) error
 }

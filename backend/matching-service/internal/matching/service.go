@@ -75,11 +75,13 @@ func (s *Service) match(ctx context.Context, request MatchRequest, assign bool) 
 		return match, rideclient.Ride{}, nil
 	}
 
+	if err := s.locations.ClaimDriver(ctx, driver.DriverID); err != nil {
+		return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
+	}
+
 	accepted, err := s.rides.AcceptRide(ctx, request.RideID, driver.DriverID)
 	if err != nil {
-		return MatchResponse{}, rideclient.Ride{}, err
-	}
-	if err := s.locations.SetDriverUnavailable(ctx, driver.DriverID); err != nil {
+		_ = s.locations.SetDriverAvailable(ctx, driver.DriverID)
 		return MatchResponse{}, rideclient.Ride{}, err
 	}
 

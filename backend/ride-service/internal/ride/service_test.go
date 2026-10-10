@@ -103,6 +103,27 @@ func TestOnlyAssignedDriverCanAdvanceRide(t *testing.T) {
 	}
 }
 
+func TestSecondDriverCannotAcceptAlreadyAcceptedRide(t *testing.T) {
+	repository := newFakeRepository()
+	service := NewService(repository, noopPublisher{})
+
+	created, err := service.Create(context.Background(), CreateRideRequest{
+		RiderID: "rider-1",
+		Pickup:  Location{Latitude: 41.0, Longitude: 29.0},
+		Dropoff: Location{Latitude: 41.1, Longitude: 29.1},
+	})
+	if err != nil {
+		t.Fatalf("create ride: %v", err)
+	}
+
+	if _, err := service.Accept(context.Background(), created.ID, "driver-1"); err != nil {
+		t.Fatalf("accept ride: %v", err)
+	}
+	if _, err := service.Accept(context.Background(), created.ID, "driver-2"); err != ErrInvalidTransition {
+		t.Fatalf("expected invalid transition for second accept, got %v", err)
+	}
+}
+
 type noopPublisher struct{}
 
 func (noopPublisher) Publish(ctx context.Context, event events.Event) error {
@@ -146,6 +167,23 @@ func (r *fakeRepository) UpdateStatus(ctx context.Context, id string, status Sta
 	}
 
 	ride.Status = status
+	if driverID != nil {
+		ride.DriverID = driverID
+	}
+	r.rides[id] = ride
+	return ride, nil
+}
+
+func (r *fakeRepository) UpdateStatusIfCurrent(ctx context.Context, id string, currentStatus Status, nextStatus Status, driverID *string) (Ride, error) {
+	ride, ok := r.rides[id]
+	if !ok {
+		return Ride{}, ErrRideNotFound
+	}
+	if ride.Status != currentStatus {
+		return Ride{}, ErrInvalidTransition
+	}
+
+	ride.Status = nextStatus
 	if driverID != nil {
 		ride.DriverID = driverID
 	}
