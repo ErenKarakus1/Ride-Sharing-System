@@ -18,6 +18,7 @@ type DriverLocation struct {
 
 type Client interface {
 	NearbyDrivers(ctx context.Context, request NearbyDriversRequest) ([]DriverLocation, error)
+	SetDriverUnavailable(ctx context.Context, driverID string) error
 }
 
 type NearbyDriversRequest struct {
@@ -75,4 +76,25 @@ func (c *HTTPClient) NearbyDrivers(ctx context.Context, request NearbyDriversReq
 	}
 
 	return drivers, nil
+}
+
+func (c *HTTPClient) SetDriverUnavailable(ctx context.Context, driverID string) error {
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/drivers/"+driverID+"/unavailable", nil)
+	if err != nil {
+		return err
+	}
+	httpRequest.Header.Set("X-User-ID", driverID)
+	httpRequest.Header.Set("X-User-Role", "driver")
+
+	response, err := c.client.Do(httpRequest)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("location service returned status %d", response.StatusCode)
+	}
+
+	return nil
 }
