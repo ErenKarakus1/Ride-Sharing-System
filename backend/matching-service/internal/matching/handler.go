@@ -22,7 +22,7 @@ func (h *Handler) Match(ctx *gin.Context) {
 		return
 	}
 
-	match, err := h.service.Match(ctx.Request.Context(), request)
+	match, err := h.service.MatchAndAssign(ctx.Request.Context(), request)
 	if errors.Is(err, ErrNoDriversAvailable) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "no drivers available"})
 		return

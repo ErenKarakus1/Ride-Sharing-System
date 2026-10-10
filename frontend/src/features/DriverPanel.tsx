@@ -51,6 +51,7 @@ export function DriverPanel({
   const canComplete = isDriver && ride?.status === "started";
   const showMatchData = Boolean(match || payment);
   const matchedDriver = match?.driver_id ?? ride?.driver_id ?? "-";
+  const canMatchRide = isDriver && driverAvailable && Boolean(ride) && !match && !ride?.driver_id;
 
   return (
     <section className="panel">
@@ -70,7 +71,7 @@ export function DriverPanel({
         steps={[
           { label: "Update location", done: Boolean(locationAction.message), active: isDriver && !locationAction.message },
           { label: "Go available", done: locationAction.message === "Driver is available", active: Boolean(locationAction.message) },
-          { label: "Match ride", done: Boolean(match || ride?.driver_id), active: Boolean(ride && !match && !ride.driver_id) },
+          { label: "Match ride", done: Boolean(match || ride?.driver_id), active: canMatchRide },
           { label: "Accept", done: ride?.status === "accepted" || ride?.status === "started" || ride?.status === "completed", active: Boolean(match && ride?.status === "requested") },
           { label: "Start", done: ride?.status === "started" || ride?.status === "completed", active: ride?.status === "accepted" },
           { label: "Complete", done: ride?.status === "completed", active: ride?.status === "started" },

@@ -27,7 +27,7 @@ export function useNotifications(token?: string) {
         reconnectsRef.current = 0;
         pushNotification(setNotifications, "Notifications connected");
       };
-      socket.onmessage = (event) => pushNotification(setNotifications, event.data);
+      socket.onmessage = (event) => pushNotification(setNotifications, formatIncomingMessage(event.data));
       socket.onerror = () => pushNotification(setNotifications, "Notification stream error");
       socket.onclose = () => {
         if (stopped) return;
@@ -61,4 +61,34 @@ function pushNotification(
   message: string,
 ) {
   setNotifications((items) => [{ message, received_at: new Date().toISOString() }, ...items].slice(0, 8));
+}
+
+function formatIncomingMessage(message: string) {
+  try {
+    const event = JSON.parse(message) as {
+      type?: string;
+      payload?: {
+        ride_id?: string;
+        payment_id?: string;
+        status?: string;
+        amount?: number;
+        currency?: string;
+      };
+    };
+
+    const shortRideID = event.payload?.ride_id ? event.payload.ride_id.slice(0, 8) : undefined;
+    if (event.type === "ride.accepted") return shortRideID ? `Ride ${shortRideID} accepted` : "Ride accepted";
+    if (event.type === "ride.started") return shortRideID ? `Ride ${shortRideID} started` : "Ride started";
+    if (event.type === "ride.completed") return shortRideID ? `Ride ${shortRideID} completed` : "Ride completed";
+    if (event.type === "payment.authorized") {
+      const amount = event.payload?.amount && event.payload?.currency ? ` for ${event.payload.amount.toFixed(2)} ${event.payload.currency}` : "";
+      return `Payment authorized${amount}`;
+    }
+    if (event.type === "payment.captured") return "Payment captured";
+    if (event.type === "payment.refunded") return "Payment refunded";
+  } catch {
+    return message;
+  }
+
+  return message;
 }

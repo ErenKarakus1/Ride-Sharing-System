@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/events"
 	"github.com/ErenKarakus1/Ride-Sharing-System/backend/matching-service/internal/locationclient"
@@ -22,6 +23,16 @@ func NewService(locations locationclient.Client, rides rideclient.Client) *Servi
 }
 
 func (s *Service) Match(ctx context.Context, request MatchRequest) (MatchResponse, error) {
+	match, _, err := s.match(ctx, request, false)
+	return match, err
+}
+
+func (s *Service) MatchAndAssign(ctx context.Context, request MatchRequest) (MatchResponse, error) {
+	match, _, err := s.match(ctx, request, true)
+	return match, err
+}
+
+func (s *Service) match(ctx context.Context, request MatchRequest, assign bool) (MatchResponse, rideclient.Ride, error) {
 	limit := request.Limit
 	if limit <= 0 {
 		limit = 5
@@ -39,19 +50,30 @@ func (s *Service) Match(ctx context.Context, request MatchRequest) (MatchRespons
 		Limit:     limit,
 	})
 	if err != nil {
-		return MatchResponse{}, err
+		return MatchResponse{}, rideclient.Ride{}, err
 	}
 	if len(drivers) == 0 {
-		return MatchResponse{}, ErrNoDriversAvailable
+		return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
 	}
 
 	driver := drivers[0]
-	return MatchResponse{
+	match := MatchResponse{
 		RideID:    request.RideID,
 		DriverID:  driver.DriverID,
 		Latitude:  driver.Latitude,
 		Longitude: driver.Longitude,
-	}, nil
+	}
+
+	if !assign || s.rides == nil {
+		return match, rideclient.Ride{}, nil
+	}
+
+	accepted, err := s.rides.AcceptRide(ctx, request.RideID, driver.DriverID)
+	if err != nil {
+		return MatchResponse{}, rideclient.Ride{}, err
+	}
+
+	return match, accepted, nil
 }
 
 func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEvent) error {
@@ -70,25 +92,43 @@ func (s *Service) HandlePaymentEvent(ctx context.Context, event events.PaymentEv
 		return nil
 	}
 
-	match, err := s.Match(ctx, MatchRequest{
+	match, accepted, err := s.matchWithRetry(ctx, MatchRequest{
 		RideID:   ride.ID,
 		Pickup:   Location{Latitude: ride.Pickup.Latitude, Longitude: ride.Pickup.Longitude},
 		RadiusKM: 5,
 		Limit:    5,
 	})
-	if errors.Is(err, ErrNoDriversAvailable) {
-		log.Printf("no drivers available for ride_id=%s", ride.ID)
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	accepted, err := s.rides.AcceptRide(ctx, ride.ID, match.DriverID)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("auto-matched ride_id=%s driver_id=%s status=%s", accepted.ID, match.DriverID, accepted.Status)
 	return nil
+}
+
+func (s *Service) matchWithRetry(ctx context.Context, request MatchRequest) (MatchResponse, rideclient.Ride, error) {
+	deadline := time.NewTimer(30 * time.Second)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		match, accepted, err := s.match(ctx, request, true)
+		if err == nil {
+			return match, accepted, nil
+		}
+		if !errors.Is(err, ErrNoDriversAvailable) {
+			return MatchResponse{}, rideclient.Ride{}, err
+		}
+
+		log.Printf("no drivers available for ride_id=%s; retrying background match", request.RideID)
+		select {
+		case <-ctx.Done():
+			return MatchResponse{}, rideclient.Ride{}, nil
+		case <-deadline.C:
+			return MatchResponse{}, rideclient.Ride{}, ErrNoDriversAvailable
+		case <-ticker.C:
+		}
+	}
 }
