@@ -40,6 +40,12 @@ export function RiderPanel({
   onAuthorizePayment,
   onRefreshRide,
 }: RiderPanelProps) {
+  const canEstimate = isRider && !fare;
+  const canRequestRide = isRider && Boolean(fare) && !ride;
+  const canAuthorizePayment = isRider && Boolean(ride) && !payment;
+  const canRefreshRide = Boolean(ride) && ride?.status !== "completed";
+  const showTripData = Boolean(fare || ride || payment);
+
   return (
     <section className="panel">
       <div className="panel-title">
@@ -62,27 +68,45 @@ export function RiderPanel({
         ]}
       />
 
-      <div className="button-row">
-        <IconButton icon={CircleDollarSign} label="Estimate" loading={action.loading} loadingLabel="Estimating..." onClick={onEstimateFare} disabled={!isRider} />
-        <IconButton icon={Car} label="Request ride" loading={action.loading} loadingLabel="Requesting..." onClick={onCreateRide} disabled={!isRider} />
-        <IconButton icon={CheckCircle2} label="Authorize" loading={action.loading} loadingLabel="Authorizing..." onClick={onAuthorizePayment} disabled={!isRider} />
-        <IconButton icon={RefreshCcw} label="Refresh" loading={action.loading} loadingLabel="Refreshing..." onClick={onRefreshRide} disabled={!ride} />
-      </div>
+      {isRider && (
+        <div className="button-row">
+          {canEstimate && (
+            <IconButton icon={CircleDollarSign} label="Estimate" loading={action.loading} loadingLabel="Estimating..." onClick={onEstimateFare} />
+          )}
+          {canRequestRide && (
+            <IconButton icon={Car} label="Request ride" loading={action.loading} loadingLabel="Requesting..." onClick={onCreateRide} />
+          )}
+          {canAuthorizePayment && (
+            <IconButton icon={CheckCircle2} label="Authorize" loading={action.loading} loadingLabel="Authorizing..." onClick={onAuthorizePayment} />
+          )}
+          {canRefreshRide && (
+            <IconButton icon={RefreshCcw} label="Refresh" loading={action.loading} loadingLabel="Refreshing..." onClick={onRefreshRide} variant="secondary" />
+          )}
+        </div>
+      )}
 
-      <DataStrip
-        items={[
-          ["Fare", fare ? `${fare.amount.toFixed(2)} ${fare.currency}` : "-"],
-          ["Distance", fare ? `${fare.distance_km.toFixed(2)} km` : "-"],
-          ["Ride", ride?.id ?? "-"],
-          ["Payment", payment?.status ?? "-"],
-        ]}
-      />
+      {showTripData && (
+        <DataStrip
+          items={[
+            ["Fare", fare ? `${fare.amount.toFixed(2)} ${fare.currency}` : "-"],
+            ["Distance", fare ? `${fare.distance_km.toFixed(2)} km` : "-"],
+            ["Ride", ride?.id ?? "-"],
+            ["Payment", payment?.status ?? "-"],
+          ]}
+        />
+      )}
 
       {!isRider && (
         <EmptyState icon={Car} title="Rider session required" detail="Register or sign in as a rider before running this flow." />
       )}
-      {isRider && !ride && (
+      {isRider && !fare && (
         <EmptyState icon={CircleDollarSign} title="Ready to plan" detail="Estimate a fare, then request a ride from the selected pickup and dropoff." />
+      )}
+      {isRider && fare && !ride && (
+        <EmptyState icon={Car} title="Fare ready" detail="Request the ride when the pickup, dropoff, and fare look right." />
+      )}
+      {isRider && ride && !payment && (
+        <EmptyState icon={CheckCircle2} title="Ride requested" detail="Authorize payment before handing the trip to the driver flow." />
       )}
     </section>
   );

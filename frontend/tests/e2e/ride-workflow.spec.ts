@@ -42,7 +42,7 @@ test("runs the main ride workflow with mocked backend responses", async ({ page 
   await expect(page.getByText("89.41 TRY").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Request ride" }).click();
-  await expect(page.getByText("Ride requested")).toBeVisible();
+  await expect(page.getByText("Ride requested").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Authorize" }).click();
   await expect(page.getByText("authorized")).toBeVisible();

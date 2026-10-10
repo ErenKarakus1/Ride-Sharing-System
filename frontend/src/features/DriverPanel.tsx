@@ -42,6 +42,16 @@ export function DriverPanel({
   onStartRide,
   onCompleteRide,
 }: DriverPanelProps) {
+  const locationUpdated = Boolean(locationAction.message);
+  const driverAvailable = locationAction.message === "Driver is available";
+  const canUpdateLocation = isDriver && !locationUpdated;
+  const canSetAvailable = isDriver && locationUpdated && !driverAvailable;
+  const canMatch = isDriver && driverAvailable && Boolean(ride) && !match;
+  const canAccept = isDriver && Boolean(match) && ride?.status === "requested";
+  const canStart = isDriver && ride?.status === "accepted";
+  const canComplete = isDriver && ride?.status === "started";
+  const showMatchData = Boolean(match || payment);
+
   return (
     <section className="panel">
       <div className="panel-title">
@@ -67,29 +77,54 @@ export function DriverPanel({
         ]}
       />
 
-      <div className="button-row">
-        <IconButton icon={Crosshair} label="Update" loading={locationAction.loading} loadingLabel="Updating..." onClick={onUpdateDriverLocation} disabled={!isDriver} />
-        <IconButton icon={Radio} label="Available" loading={locationAction.loading} loadingLabel="Saving..." onClick={onSetDriverAvailable} disabled={!isDriver} />
-        <IconButton icon={Navigation} label="Match" loading={matchingAction.loading} loadingLabel="Matching..." onClick={onFindDriver} disabled={!ride} />
-        <IconButton icon={CheckCircle2} label="Accept" loading={lifecycleAction.loading} loadingLabel="Accepting..." onClick={onAcceptRide} disabled={!isDriver || !ride} />
-        <IconButton icon={Car} label="Start" loading={lifecycleAction.loading} loadingLabel="Starting..." onClick={onStartRide} disabled={!isDriver || !ride} />
-        <IconButton icon={CheckCircle2} label="Complete" loading={lifecycleAction.loading} loadingLabel="Completing..." onClick={onCompleteRide} disabled={!isDriver || !ride} />
-      </div>
+      {isDriver && (
+        <div className="button-row">
+          {canUpdateLocation && (
+            <IconButton icon={Crosshair} label="Update" loading={locationAction.loading} loadingLabel="Updating..." onClick={onUpdateDriverLocation} />
+          )}
+          {canSetAvailable && (
+            <IconButton icon={Radio} label="Available" loading={locationAction.loading} loadingLabel="Saving..." onClick={onSetDriverAvailable} />
+          )}
+          {canMatch && (
+            <IconButton icon={Navigation} label="Match" loading={matchingAction.loading} loadingLabel="Matching..." onClick={onFindDriver} />
+          )}
+          {canAccept && (
+            <IconButton icon={CheckCircle2} label="Accept" loading={lifecycleAction.loading} loadingLabel="Accepting..." onClick={onAcceptRide} />
+          )}
+          {canStart && (
+            <IconButton icon={Car} label="Start" loading={lifecycleAction.loading} loadingLabel="Starting..." onClick={onStartRide} />
+          )}
+          {canComplete && (
+            <IconButton icon={CheckCircle2} label="Complete" loading={lifecycleAction.loading} loadingLabel="Completing..." onClick={onCompleteRide} />
+          )}
+        </div>
+      )}
 
-      <DataStrip
-        items={[
-          ["Matched driver", match?.driver_id ?? "-"],
-          ["Latitude", match ? match.latitude.toFixed(5) : "-"],
-          ["Longitude", match ? match.longitude.toFixed(5) : "-"],
-          ["Payment ID", payment?.id ?? "-"],
-        ]}
-      />
+      {showMatchData && (
+        <DataStrip
+          items={[
+            ["Matched driver", match?.driver_id ?? "-"],
+            ["Latitude", match ? match.latitude.toFixed(5) : "-"],
+            ["Longitude", match ? match.longitude.toFixed(5) : "-"],
+            ["Payment ID", payment?.id ?? "-"],
+          ]}
+        />
+      )}
 
       {!isDriver && (
         <EmptyState icon={Car} title="Driver session required" detail="Register or sign in as a driver before accepting trips." />
       )}
-      {isDriver && !ride && (
+      {isDriver && !locationUpdated && (
+        <EmptyState icon={Crosshair} title="Set driver position" detail="Update the driver's current location before marking them available." />
+      )}
+      {isDriver && locationUpdated && !driverAvailable && (
+        <EmptyState icon={Radio} title="Location saved" detail="Mark the driver available so they can be matched to the active ride." />
+      )}
+      {isDriver && driverAvailable && !ride && (
         <EmptyState icon={Navigation} title="Waiting for a ride" detail="Update driver location, mark the driver available, then match an active ride." />
+      )}
+      {isDriver && driverAvailable && ride && !match && (
+        <EmptyState icon={Navigation} title="Ready to match" detail="Find the nearest available driver for the current ride." />
       )}
     </section>
   );

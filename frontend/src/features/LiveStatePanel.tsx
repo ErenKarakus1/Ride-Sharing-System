@@ -1,5 +1,6 @@
 import { CreditCard, MapPin, RefreshCcw, Route } from "lucide-react";
 import { DataStrip } from "../components/DataStrip";
+import { EmptyState } from "../components/EmptyState";
 import { JsonBlock } from "../components/JsonBlock";
 import { StatusLine } from "../components/StatusLine";
 import { formatCoord } from "../lib/format";
@@ -18,13 +19,21 @@ export function LiveStatePanel({ ride, payment, paymentAction, onRefreshPayment 
       <div className="panel-title">
         <h2>Live state</h2>
         <span>{paymentAction.loading ? "working" : paymentAction.error || paymentAction.message}</span>
-        <button className="icon-only" onClick={onRefreshPayment} disabled={!payment || paymentAction.loading} title="Refresh payment">
-          <RefreshCcw size={18} />
-        </button>
+        {payment && (
+          <button className="icon-only" onClick={onRefreshPayment} disabled={paymentAction.loading} title="Refresh payment">
+            <RefreshCcw size={18} />
+          </button>
+        )}
       </div>
 
-      <div className="summary-grid">
-        <article className="summary-card">
+      {!ride && !payment && (
+        <EmptyState icon={Route} title="No active ride yet" detail="Create a ride from the Rider page to inspect live ride and payment state here." />
+      )}
+
+      {(ride || payment) && (
+        <div className="summary-grid">
+          {ride && (
+          <article className="summary-card">
           <div className="summary-heading">
             <Route size={18} />
             <h3>Ride</h3>
@@ -41,8 +50,10 @@ export function LiveStatePanel({ ride, payment, paymentAction, onRefreshPayment 
             ]}
           />
         </article>
+          )}
 
-        <article className="summary-card">
+          {payment && (
+          <article className="summary-card">
           <div className="summary-heading">
             <CreditCard size={18} />
             <h3>Payment</h3>
@@ -57,12 +68,16 @@ export function LiveStatePanel({ ride, payment, paymentAction, onRefreshPayment 
             ]}
           />
         </article>
-      </div>
+          )}
+        </div>
+      )}
 
-      <div className="state-grid">
-        <JsonBlock title="Ride" value={ride} />
-        <JsonBlock title="Payment" value={payment} />
-      </div>
+      {(ride || payment) && (
+        <div className="state-grid">
+          {ride && <JsonBlock title="Ride" value={ride} />}
+          {payment && <JsonBlock title="Payment" value={payment} />}
+        </div>
+      )}
     </section>
   );
 }
