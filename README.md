@@ -1,5 +1,11 @@
 # Ride Sharing System
 
+![CI](https://github.com/ErenKarakus1/Ride-Sharing-System/actions/workflows/ci.yml/badge.svg)
+![Go](https://img.shields.io/badge/Go-1.26.5%2B-00ADD8?logo=go&logoColor=white)
+![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react&logoColor=111111)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+
 A full-stack ride sharing platform built with Go microservices, React, PostgreSQL, Redis, Kafka, gRPC, Docker, Prometheus, and Grafana.
 
 The system supports rider and driver accounts, JWT authentication, fare estimation, ride requests, Redis-backed driver location and availability, automatic and manual driver matching, ride lifecycle transitions, mock payment authorization and capture, real-time ride notifications, and operational monitoring through Prometheus and Grafana.
@@ -15,6 +21,8 @@ The system supports rider and driver accounts, JWT authentication, fare estimati
 - [Notifications](#notifications)
 - [Observability](#observability)
 - [Architecture](#architecture)
+- [Workflow Diagrams](#workflow-diagrams)
+- [API Examples](#api-examples)
 - [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [Run with Docker](#run-with-docker)
@@ -239,6 +247,239 @@ flowchart LR
     Prometheus --> Payments
     Grafana[Grafana] --> Prometheus
 ```
+
+## Workflow Diagrams
+
+### Automatic Matching After Payment Authorization
+
+```mermaid
+sequenceDiagram
+    participant Rider
+    participant Frontend
+    participant Gateway as API Gateway
+    participant Payments as Payment Service
+    participant Kafka
+    participant Matching as Matching Service
+    participant Locations as Location Service
+    participant Rides as Ride Service
+    participant Notifications as Notification Service
+
+    Rider->>Frontend: Authorize payment
+    Frontend->>Gateway: POST /api/v1/payments/authorize
+    Gateway->>Payments: Forward authorized request
+    Payments->>Payments: Validate ride and create payment
+    Payments-->>Kafka: payment.authorized
+    Payments-->>Gateway: authorized payment
+    Gateway-->>Frontend: Payment response
+
+    Kafka-->>Matching: payment.authorized
+    Matching->>Rides: Get ride
+    Matching->>Locations: Find nearby available drivers
+    Matching->>Locations: Claim selected driver
+    Matching->>Rides: Accept ride for claimed driver
+    Rides-->>Kafka: ride.accepted
+    Kafka-->>Notifications: ride.accepted
+    Notifications-->>Frontend: WebSocket notification
+```
+
+### Ride Completion and Payment Capture
+
+```mermaid
+sequenceDiagram
+    participant Driver
+    participant Frontend
+    participant Gateway as API Gateway
+    participant Rides as Ride Service
+    participant Kafka
+    participant Payments as Payment Service
+    participant Notifications as Notification Service
+    participant Rider
+
+    Driver->>Frontend: Complete ride
+    Frontend->>Gateway: POST /api/v1/rides/{ride_id}/complete
+    Gateway->>Rides: Forward completion request
+    Rides->>Rides: Validate assigned driver and transition
+    Rides-->>Kafka: ride.completed
+    Rides-->>Gateway: completed ride
+    Gateway-->>Frontend: Ride response
+
+    Kafka-->>Payments: ride.completed
+    Payments->>Payments: Find authorized payment
+    Payments->>Payments: Capture payment
+    Payments-->>Kafka: payment.captured
+
+    Kafka-->>Notifications: ride.completed
+    Notifications-->>Rider: WebSocket notification
+```
+
+## API Examples
+
+The frontend uses these APIs through the API gateway. The examples below show the shape of the main workflow when calling the gateway directly.
+
+### Register a rider
+
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "rider@example.com",
+  "password": "Password12345",
+  "display_name": "Demo Rider",
+  "phone_number": "+905551112233",
+  "role": "rider"
+}
+```
+
+Example response:
+
+```json
+{
+  "access_token": "jwt-token",
+  "user_id": "6f9f27e2-41b5-41f4-bdf8-2cb8a6f29c88"
+}
+```
+
+### Estimate a fare
+
+```http
+POST /api/v1/fare-estimates
+Authorization: Bearer jwt-token
+Content-Type: application/json
+
+{
+  "pickup": {
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "address": "Sultanahmet"
+  },
+  "dropoff": {
+    "latitude": 41.0369,
+    "longitude": 28.9850,
+    "address": "Taksim"
+  }
+}
+```
+
+Example response:
+
+```json
+{
+  "amount": 89.41,
+  "currency": "TRY"
+}
+```
+
+### Create a ride
+
+```http
+POST /api/v1/rides
+Authorization: Bearer jwt-token
+Content-Type: application/json
+
+{
+  "pickup": {
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "address": "Sultanahmet"
+  },
+  "dropoff": {
+    "latitude": 41.0369,
+    "longitude": 28.9850,
+    "address": "Taksim"
+  }
+}
+```
+
+Example response:
+
+```json
+{
+  "id": "e99a8da9-2675-48a3-8c46-5c9fb8c10960",
+  "rider_id": "6f9f27e2-41b5-41f4-bdf8-2cb8a6f29c88",
+  "driver_id": null,
+  "status": "requested",
+  "pickup": {
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "address": "Sultanahmet"
+  },
+  "dropoff": {
+    "latitude": 41.0369,
+    "longitude": 28.985,
+    "address": "Taksim"
+  }
+}
+```
+
+### Mark a driver available
+
+```http
+PUT /api/v1/drivers/{driver_id}/location
+Authorization: Bearer driver-jwt-token
+Content-Type: application/json
+
+{
+  "latitude": 41.0082,
+  "longitude": 28.9784
+}
+```
+
+```http
+POST /api/v1/drivers/{driver_id}/available
+Authorization: Bearer driver-jwt-token
+```
+
+Both endpoints return `204 No Content` on success.
+
+### Authorize payment and trigger background matching
+
+```http
+POST /api/v1/payments/authorize
+Authorization: Bearer jwt-token
+Content-Type: application/json
+
+{
+  "ride_id": "e99a8da9-2675-48a3-8c46-5c9fb8c10960",
+  "amount": 89.41,
+  "currency": "TRY"
+}
+```
+
+Example response:
+
+```json
+{
+  "id": "bc824c5a-e6f5-4d1a-bc19-369fae4f130e",
+  "ride_id": "e99a8da9-2675-48a3-8c46-5c9fb8c10960",
+  "rider_id": "6f9f27e2-41b5-41f4-bdf8-2cb8a6f29c88",
+  "driver_id": null,
+  "amount": 89.41,
+  "currency": "TRY",
+  "status": "authorized"
+}
+```
+
+The payment authorization publishes a `payment.authorized` event. The matching service consumes that event and accepts the ride if an available nearby driver can be claimed.
+
+### Complete a ride
+
+```http
+POST /api/v1/rides/{ride_id}/complete
+Authorization: Bearer driver-jwt-token
+```
+
+Example response:
+
+```json
+{
+  "id": "e99a8da9-2675-48a3-8c46-5c9fb8c10960",
+  "driver_id": "1edb9222-b377-4454-8a84-a6dc3de4959c",
+  "status": "completed"
+}
+```
+
+The ride completion publishes a `ride.completed` event. The payment service consumes that event and captures the authorized payment.
 
 ## Project Structure
 
